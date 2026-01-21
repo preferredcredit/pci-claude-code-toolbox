@@ -1,0 +1,12 @@
+{
+  "name": "qa-playwright",
+  "description": "QA tools for Playwright testing and automation",
+  "version": "1.0.0",
+  "author": {
+    "name": "PCI"
+  },
+  "homepage": "https://github.com/scel-pci/pci-claude-code-toolbox",
+  "repository": "https://github.com/scel-pci/pci-claude-code-toolbox",
+  "license": "MIT",
+  "keywords": ["qa", "playwright", "testing", "automation"]
+}

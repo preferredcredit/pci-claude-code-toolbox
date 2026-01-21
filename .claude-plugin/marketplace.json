@@ -1,0 +1,25 @@
+{
+  "name": "pci-toolbox",
+  "owner": {
+    "name": "PCI",
+    "email": "scel-pci@example.com"
+  },
+  "metadata": {
+    "description": "PCI's plugin marketplace for Claude Code extensions",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "qa-playwright",
+      "source": "./plugins/qa-playwright",
+      "description": "QA tools for Playwright testing and automation",
+      "version": "1.0.0",
+      "author": {
+        "name": "PCI"
+      },
+      "category": "testing",
+      "keywords": ["qa", "playwright", "testing", "automation"]
+    }
+  ]
+}
