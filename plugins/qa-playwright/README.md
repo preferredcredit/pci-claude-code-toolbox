@@ -19,6 +19,21 @@ Guides you through:
 - Smoke tests
 - Documentation generation (CLAUDE.md, playwright-commands.md)
 
+### /playwright-create-test Command
+
+Create new Playwright E2E tests for a specific feature.
+
+```
+/playwright-create-test login flow
+```
+
+Guides you through:
+- Gathering requirements and acceptance criteria
+- Creating a test plan for approval
+- Creating/updating page objects
+- Writing tests with proper structure
+- Running and validating tests
+
 ### playwright-engineer Subagent
 
 A TypeScript Playwright specialist that Claude delegates to for E2E test work:
