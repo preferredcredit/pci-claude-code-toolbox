@@ -13,7 +13,7 @@ PCI's plugin marketplace to distribute Claude Code extensions across teams.
 From any Claude Code session, add the PCI toolbox marketplace:
 
 ```
-/plugin marketplace add scel-pci/pci-claude-code-toolbox
+/plugin marketplace add preferredcredit/pci-claude-code-toolbox
 ```
 
 ### Install Plugins

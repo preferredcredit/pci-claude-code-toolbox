@@ -5,8 +5,8 @@
   "author": {
     "name": "PCI"
   },
-  "homepage": "https://github.com/scel-pci/pci-claude-code-toolbox",
-  "repository": "https://github.com/scel-pci/pci-claude-code-toolbox",
+  "homepage": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "repository": "https://github.com/preferredcredit/pci-claude-code-toolbox",
   "license": "MIT",
   "keywords": ["qa", "playwright", "testing", "automation"]
 }
