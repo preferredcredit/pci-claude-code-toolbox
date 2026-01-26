@@ -2,11 +2,11 @@
   "name": "pci-toolbox",
   "owner": {
     "name": "PCI",
-    "email": "scel-pci@example.com"
+    "email": "scel@preferredcredit.com"
   },
   "metadata": {
     "description": "PCI's plugin marketplace for Claude Code extensions",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -14,7 +14,7 @@
       "name": "qa-playwright",
       "source": "./plugins/qa-playwright",
       "description": "QA tools for Playwright testing and automation",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "author": {
         "name": "PCI"
       },

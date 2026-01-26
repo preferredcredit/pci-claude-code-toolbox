@@ -71,7 +71,7 @@ claude mcp add playwright npx @playwright/mcp@latest
 ## Installation
 
 ```
-/plugin marketplace add scel-pci/pci-claude-code-toolbox
+/plugin marketplace add preferredcredit/pci-claude-code-toolbox
 /plugin install qa-playwright@pci-toolbox
 ```
 
