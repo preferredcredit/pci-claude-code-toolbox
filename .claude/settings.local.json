@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(tree:*)",
-      "Bash(git -C \"c:\\\\Repos\\\\pci-claude-code-toolbox\" show HEAD:plugins/qa-playwright/skills/qa-check/SKILL.md)"
-    ]
-  }
-}
