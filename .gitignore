@@ -1,18 +1,2 @@
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
-# Local settings
-.claude/settings.local.json
-
-# OS files
-Thumbs.db
+# Claude Code local settings
+.claude/
