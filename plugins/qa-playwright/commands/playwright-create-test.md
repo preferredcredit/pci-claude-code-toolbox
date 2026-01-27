@@ -212,7 +212,7 @@ npm run test:e2e -- tests/e2e/{feature}/{feature}.spec.ts
 
 ## Important Guidelines
 
-- **KISS** - Keep it stupid simple
+- **KISS** - Keep it simple stupid
 - **Follow existing patterns** - Match the style of existing tests in the project
 - **One behavior per test** - Keep tests focused and independent
 - **Use page objects** - Don't put selectors directly in test files
