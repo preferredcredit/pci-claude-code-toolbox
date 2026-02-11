@@ -1,6 +1,8 @@
 # QA Playwright Plugin
 
-Claude Code plugin providing Playwright testing tools.
+Claude Code plugin providing Playwright testing tools. 
+
+Make a change
 
 ## Features
 
