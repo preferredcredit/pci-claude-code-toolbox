@@ -6,6 +6,16 @@ PCI's plugin marketplace to distribute Claude Code extensions across teams.
 
 ### [QA Playwright](plugins/qa-playwright/README.md) - QA tools for Playwright testing and automation.
 
+### [Engineer Toolkit](plugins/engineer-toolkit/README.md) - Engineering tools for code review and architecture analysis.
+
+**Agents:**
+- `code-reviewer` - Code quality analysis (sonnet)
+- `architect-review` - Architecture review and design (opus)
+
+**Skills:**
+- `/author-review` - Author self-review before creating a PR
+- `/reviewer-check` - Reviewer validation of someone else's PR
+
 ## Installation
 
 ### Add the Marketplace

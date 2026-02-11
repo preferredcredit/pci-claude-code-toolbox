@@ -1,15 +1,21 @@
 {
   "name": "pci-toolbox",
-  "version": "1.0.1",
-  "description": "PCI's plugin marketplace for Claude Code extensions",
   "owner": {
     "name": "PCI",
     "email": "scel@preferredcredit.com"
+  },
+  "metadata": {
+    "description": "PCI's plugin marketplace for Claude Code extensions",
+    "version": "1.0.1"
   },
   "plugins": [
     {
       "name": "qa-playwright",
       "source": "./plugins/qa-playwright"
+    },
+    {
+      "name": "engineer-toolkit",
+      "source": "./plugins/engineer-toolkit"
     }
   ]
 }
