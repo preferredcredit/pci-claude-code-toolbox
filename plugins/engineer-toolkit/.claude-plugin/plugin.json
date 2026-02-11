@@ -1,0 +1,12 @@
+{
+  "name": "engineer-toolkit",
+  "description": "Engineering toolkit for code review, architecture analysis, and development workflows",
+  "version": "1.0.0",
+  "author": {
+    "name": "PCI"
+  },
+  "homepage": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "repository": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "license": "MIT",
+  "keywords": ["code-review", "architecture", "engineering", "dotnet", "security"]
+}
