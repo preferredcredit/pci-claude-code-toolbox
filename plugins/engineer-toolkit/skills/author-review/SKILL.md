@@ -12,7 +12,20 @@ Act as the **AUTHOR** reviewing your own change at Preferred Credit Inc. (PCI).
 
 You are an assistant, not the decision-maker. Optimize for risk reduction and team flow, not perfection.
 
+## Modes
+
+This skill runs in two modes. The output format is identical in both — only the data-gathering and delegation steps differ.
+
+- **Interactive mode** (default) — invoked from Claude Code with full tool access (Read, Grep, Glob, Bash, Task). Run all steps as written, ask the user for context, delegate to specialized agents.
+- **Pipeline mode** — invoked from automation (CI/CD) with no user to ask, no Bash, no Task tool. Context (the diff at minimum) is pre-supplied in the invocation. Detect by the presence of `MODE: pipeline` in the invocation message.
+
+Each step below has a **Skip-if pipeline mode** note where the behavior differs. Follow it in pipeline mode; ignore it in interactive mode.
+
+**Output discipline in pipeline mode**: produce only the final synthesized report from Step 8 onward. Do not emit step headers (`Step 1:`, `Step 4 & 5:`, etc.) or process narration (`I'll work through this systematically…`). The receiver wants the result, not the journey through the steps.
+
 ## Step 1: Gather Context
+
+> **Skip-if pipeline mode**: Use whatever context is provided in the invocation (typically the diff). For any field not provided (Jira key, AC, systems touched), proceed without it and note the absence in the final output (e.g., `Jira context: not provided`). Do not ask follow-up questions.
 
 Ask the user for the following information. Wait for answers before proceeding.
 
@@ -23,6 +36,8 @@ Ask the user for the following information. Wait for answers before proceeding.
 5. **Anything you're worried about or unsure of** — Areas where you'd like extra scrutiny
 
 ## Step 2: Gather the Diff
+
+> **Skip-if pipeline mode**: The diff is already supplied in the invocation. The git/`gh` sub-steps and the "Read all changed files" sub-step do not apply — analyze the diff content as-is.
 
 Once context is provided:
 
@@ -36,6 +51,8 @@ Once context is provided:
 Read all changed files in full to understand context around the changes.
 
 ## Step 3: Build and Test
+
+> **Skip-if pipeline mode**: Bash is unavailable. Set `Build: Not run (pipeline mode)` and `Tests: Not run (pipeline mode)` in the AI Review Summary and proceed to Step 4.
 
 Before analyzing the code, verify the solution builds and tests pass:
 
@@ -79,6 +96,8 @@ State your assessment and reasoning.
 
 ## Step 6: Code Quality Review
 
+> **Skip-if pipeline mode**: The Task tool is unavailable. Perform the equivalent code review yourself, inline. Cover: logic errors, security vulnerabilities, performance issues, maintainability, and pattern compliance. Apply the **Review Priorities** and **What NOT to Flag** sections at the bottom of this file. Reference specific file:line for every finding.
+
 Use the Task tool to delegate to the `code-reviewer` agent with the following prompt:
 
 > Review the following code changes at PCI. The changes are for: [story context].
@@ -89,6 +108,8 @@ Use the Task tool to delegate to the `code-reviewer` agent with the following pr
 ## Step 7: Architecture Review (Complex Changes Only)
 
 **Skip this step for simple changes.**
+
+> **Skip-if pipeline mode**: The Task tool is unavailable. For Complex changes, perform a brief inline architecture pass yourself — assess design decisions, cost of change, backward compatibility, over-engineering, and system boundaries. If anything material warrants deeper scrutiny, recommend a human architect-review pass before merge in the final output.
 
 For complex changes, use the Task tool to delegate to the `architect-review` agent with the following prompt:
 
