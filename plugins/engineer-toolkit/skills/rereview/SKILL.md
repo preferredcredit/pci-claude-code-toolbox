@@ -192,7 +192,15 @@ Group by severity. Reference specific **File:Line** for every finding.
 
 > **Pipeline mode only**: emit this section *only* in pipeline mode (when `MODE: pipeline-recheck` is present). In interactive mode, omit it entirely — humans don't need it, and engineers paste the prose into PR comments where the JSON would be noise.
 
-After the prose sections above, append one fenced JSON block in this exact form so the pipeline can update the existing AI summary thread, post status updates per inline thread, and gate downstream automation on the `all_clear` flag:
+> **REQUIRED FORMAT — THE FENCE IS NOT OPTIONAL.**
+>
+> You **MUST** wrap the JSON in a triple-backtick fenced code block whose opening line is exactly `` ```json recheck-status-v1 ``` `` (with both `json` and `recheck-status-v1` separated by a single space). The closing fence is `` ``` `` on its own line.
+>
+> Bare JSON with no fence — or a fence missing the `recheck-status-v1` label — will not be parsed correctly by the pipeline. The recheck status comment will appear as raw text and the `all_clear` gate downstream automation depends on will never trigger.
+>
+> Treat the fence and the `recheck-status-v1` label as part of the schema, not as optional formatting.
+
+After the prose sections above, append the JSON block in this exact form so the pipeline can update the existing AI summary thread, post status updates per inline thread, and gate downstream automation on the `all_clear` flag:
 
 ```json recheck-status-v1
 {
