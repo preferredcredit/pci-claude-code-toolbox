@@ -192,7 +192,15 @@ Recommend a walkthrough if:
 
 > **Pipeline mode only**: emit this section *only* in pipeline mode (when `MODE: pipeline` is present in the invocation). In interactive mode, omit it entirely — humans reading the prose report don't need it, and engineers paste the report into PR descriptions where the JSON would be noise.
 
-After all the prose sections above, append a single fenced JSON block in this exact form so downstream automation (pipeline inline comments, recheck delta review, dashboards) can parse findings without re-reading the prose:
+> **REQUIRED FORMAT — THE FENCE IS NOT OPTIONAL.**
+>
+> You **MUST** wrap the JSON in a triple-backtick fenced code block whose opening line is exactly `` ```json findings-v1 ``` `` (with both `json` and `findings-v1` separated by a single space). The closing fence is `` ``` `` on its own line.
+>
+> Bare JSON with no fence — or a fence missing the `findings-v1` label — will not be parsed correctly by the pipeline. Inline comments will not be posted. The JSON will appear as raw text in the PR comment, defeating the purpose of having structure at all.
+>
+> Treat the fence and the `findings-v1` label as part of the schema, not as optional formatting.
+
+After all the prose sections above, append the JSON block in this exact form:
 
 ```json findings-v1
 {
