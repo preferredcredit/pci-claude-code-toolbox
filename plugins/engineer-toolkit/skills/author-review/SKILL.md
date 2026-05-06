@@ -188,6 +188,46 @@ Recommend a walkthrough if:
 - Business logic is complex or subtle
 - New architectural patterns are introduced
 
+### Structured Findings (machine-readable)
+
+> **Pipeline mode only**: emit this section *only* in pipeline mode (when `MODE: pipeline` is present in the invocation). In interactive mode, omit it entirely — humans reading the prose report don't need it, and engineers paste the report into PR descriptions where the JSON would be noise.
+
+After all the prose sections above, append a single fenced JSON block in this exact form so downstream automation (pipeline inline comments, recheck delta review, dashboards) can parse findings without re-reading the prose:
+
+```json findings-v1
+{
+  "findings": [
+    {
+      "severity": "critical",
+      "file": "Origination/SomeProject/SomeFile.cs",
+      "line": 142,
+      "title": "SQL built via string concatenation",
+      "message": "User input is concatenated into the SQL on line 142, opening an injection path. Switch to a parameterized query."
+    }
+  ]
+}
+```
+
+Field rules:
+
+- The fence label `findings-v1` is required and stable — automation grep relies on it.
+- `severity` — exactly one of `"critical"`, `"warning"`, `"suggestion"` (lowercase).
+- `file` — repository-relative path with forward slashes, no leading slash. Required for any finding intended to surface as an inline PR comment.
+- `line` — integer line number in the new (post-change) file, 1-based. If the finding is file-level rather than line-specific, use `null`.
+- `title` — under 80 chars, suitable as a single-line comment header.
+- `message` — full detail. Markdown is fine (will render in PR comments). Mirrors the prose finding but standalone-readable.
+- If there are no findings, emit `{"findings": []}` so automation can detect "all clear" reliably.
+
+What to include in the JSON:
+
+- Every Critical, Warning, and Suggestion that has a clear file reference (with or without a line number).
+- Skip pure architecture/global concerns that have no file anchor — those stay in the prose only. The JSON is for things automation can place on the diff.
+
+Consistency with the prose:
+
+- Every JSON finding should also appear in the prose Key Findings section. The prose is for humans skimming the PR; the JSON is for tools.
+- Don't add "phantom" findings to the JSON that aren't in the prose, or vice versa.
+
 ---
 
 ## Review Priorities
