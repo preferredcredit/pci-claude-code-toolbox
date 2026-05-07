@@ -69,17 +69,22 @@ Required inputs:
 
 Ask the user for whatever isn't already provided. If a PR link is given, use `gh pr view <number> --json`, `gh api`, or equivalent to pull the prior comment, the inline threads, and their reply chains.
 
-## Step 2: Compute the Delta Diff
+## Step 2: Gather Both Diffs (Delta + Full PR)
 
-> **Skip-if pipeline mode**: Delta diff is pre-supplied in the invocation; the git/gh sub-steps don't apply.
+> **Skip-if pipeline mode**: Both diffs are pre-supplied in the invocation; the git/gh sub-steps don't apply. The user message will contain a `DELTA DIFF` (changes since prior review) AND a `FULL PR DIFF` (everything in the PR vs target branch). If only one is supplied, note it as a caveat and proceed with what you have.
 
-Run:
+Two diffs are needed for a complete recheck:
 
-- `git diff <reviewed-commit>..HEAD --stat` — files touched since prior review
-- `git diff <reviewed-commit>..HEAD` — full delta diff
-- `git log <reviewed-commit>..HEAD --oneline` — commits in the delta
+1. **Delta diff** — changes since the prior review. Used to detect findings introduced in those changes (`kind: "new"`).
+   - `git diff <reviewed-commit>..HEAD --stat`
+   - `git diff <reviewed-commit>..HEAD`
+   - `git log <reviewed-commit>..HEAD --oneline`
 
-If the prior reviewed-commit is no longer reachable (e.g., force-push rewrote history), note it as a caveat and fall back to a full PR review against the target branch.
+2. **Full PR diff** — every change in the PR (vs target branch). Used to detect findings the original review missed (`kind: "missed"`). Without this, recheck would only catch new issues, leaving silent issues from the prior pass invisible.
+   - `git diff <target-branch>..HEAD --stat`
+   - `git diff <target-branch>..HEAD`
+
+If the prior reviewed-commit is no longer reachable (e.g., force-push rewrote history), note it as a caveat and treat the full PR diff as both inputs — every finding becomes effectively `missed` since we can't distinguish new from existing.
 
 ## Step 3: Evaluate Each Prior Finding
 
@@ -107,9 +112,27 @@ How to weight each ADOS thread status:
 - **`closed`** (Closed) — closed without an explicit resolution. Treat similarly to `active`: judge on the conversation and code, not the metadata.
 - **`byDesign`** (By Design) — author asserts it's intentional architecture. Same evaluation as `wontFix`: convincing rationale → `acknowledged-wontfix`, weak rationale → `still-present`.
 
-## Step 4: Identify New Findings in the Delta
+## Step 4: Identify Findings (New AND Missed)
 
-Independently from prior findings, review the delta diff for NEW issues using the standard priorities below. Don't double-count: if a new issue is in fact the same as a `still-present` prior finding at a different location, treat it as `superseded` rather than as a separate new finding.
+Review the **full PR diff** (every change in the PR, not just the delta since prior review) for issues that warrant flagging. The reason: a single-pass code review has a non-trivial miss rate. The original author-review may have caught only a subset of real issues. If recheck only looks at the delta, issues that existed all along but weren't flagged stay invisible forever — and a downstream `all_clear` gate would let them ship.
+
+Tag each finding with one of two kinds:
+
+- **`kind: "new"`** — the issue was introduced by changes since the prior review (i.e., it's in the delta). The original review couldn't have caught it.
+- **`kind: "missed"`** — the issue exists in the PR but was NOT in the prior findings list. It was either present from the start and the original review missed it, OR it was introduced in a commit the original review covered but not flagged. Either way, it's an issue the original review didn't catch.
+
+Don't double-count:
+
+- If a finding matches a `still-present` prior finding at a different location (renamed/moved), treat it as `superseded` (status update) rather than emitting it again as `new` or `missed`.
+- If a finding is functionally identical to a prior finding (same issue, same code path, same file:line after the changes), don't emit it as `missed` — it should already be tracked via `prior_findings_status`.
+- Only emit a finding as `missed` if it's genuinely a new flag that wasn't in `prior_findings`.
+
+Be especially careful with `missed` findings:
+
+- Distinguish "the original reviewer chose not to flag this" (intentional, e.g., handled by analyzers) from "the original reviewer didn't notice this" (genuine miss). When in doubt, lean toward flagging — a downstream human can dismiss it, but a silent skip can't be recovered.
+- Apply the standard "What NOT to Flag" filter at the bottom of this file. Style preferences, tool-handled formatting, and theoretical concerns don't qualify as `missed` findings just because the original review didn't enumerate them.
+
+Apply the standard Review Priorities (correctness, risk, security, maintainability, architecture, style — in that order) for both `new` and `missed` findings.
 
 ## Step 5: Synthesize and Report
 
@@ -124,9 +147,10 @@ Combine prior-finding statuses + new findings into the structured output below. 
 - **Commits since prior review**: [count]
 - **Prior findings total**: [count]
 - **Status breakdown**: [X addressed, Y still-present, Z acknowledged-wontfix, W false-positive, V superseded]
-- **New findings introduced**: [count] ([breakdown by severity])
+- **New findings introduced (delta)**: [count] ([breakdown by severity])
+- **Missed findings (existed but not flagged in prior review)**: [count] ([breakdown by severity])
 - **All clear**: ✅ Yes / ❌ No
-  - Yes only if: zero Critical or Warning findings remain unaddressed AND no new Critical or Warning findings were introduced.
+  - Yes only if: zero Critical or Warning findings remain unaddressed (whether prior `still-present`, `new`, or `missed`).
 
 ### Prior Findings — Status
 
@@ -162,9 +186,26 @@ For each:
 - **[severity] Title** — `file:line`
 - **Replaced by**: cross-reference to the new finding it became
 
-### New Findings (introduced since prior review)
+### New & Missed Findings
 
-Group by severity. Reference specific **File:Line** for every finding.
+Findings that aren't represented in the prior findings list. Group by kind first, then by severity within each kind. Reference specific **File:Line** for every finding.
+
+#### 🆕 New (introduced since prior review)
+
+Findings caused by changes in the delta diff. The original review couldn't have caught these.
+
+🔴 **Critical** — must fix before merge
+- 🔴 [finding with file:line]
+
+🟡 **Warning** — should address
+- 🟡 [finding with file:line]
+
+**Suggestion** — consider
+- [finding with file:line]
+
+#### 👀 Missed (existed before but not flagged in prior review)
+
+Findings that were present in the code at the time of the prior review but the original AI review didn't enumerate them. Single-pass review has a non-trivial miss rate; surfacing these now closes the gap so they don't ship silently.
 
 🔴 **Critical** — must fix before merge
 - 🔴 [finding with file:line]
@@ -228,11 +269,20 @@ After the prose sections above, append the JSON block in this exact form so the 
   ],
   "new_findings": [
     {
+      "kind": "new",
       "severity": "warning",
       "file": "Origination/NewFile.cs",
       "line": 23,
       "title": "Returning entity from API endpoint",
       "message": "Endpoint returns the EF Core entity directly. Use a DTO to avoid accidentally exposing internal fields."
+    },
+    {
+      "kind": "missed",
+      "severity": "critical",
+      "file": "Origination/ExistingFile.cs",
+      "line": 88,
+      "title": "Hardcoded connection string",
+      "message": "Connection string is hardcoded in source. This existed before the PR and was not flagged in the prior author review; surfacing now."
     }
   ]
 }
@@ -241,17 +291,19 @@ After the prose sections above, append the JSON block in this exact form so the 
 Field rules:
 
 - The fence label `recheck-status-v1` is required and stable.
-- `all_clear` — `true` only if zero Critical or Warning findings remain unaddressed AND no new Critical or Warning findings were introduced.
+- `all_clear` — `true` only if zero Critical or Warning findings remain unaddressed (whether `still-present` from prior, or `new`, or `missed`).
 - `merge_recommendation` — `"ready"`, `"wait"`, or `"needs-discussion"`.
 - `prior_findings_status[].status` — one of `"addressed"`, `"still-present"`, `"acknowledged-wontfix"`, `"false-positive"`, `"superseded"`.
 - `prior_findings_status[].rationale` — one to two sentences explaining the status decision; cited evidence if possible.
 - `prior_findings_status[].source` (optional) — `"ai"` if the prior finding came from a `findings-v1` JSON marker, `"human"` if it came from a reviewer's inline comment. Helpful when a PR has both kinds and you need to tell at a glance.
-- `new_findings` — same schema as `findings-v1` from author-review (file, line, severity, title, message). Include only findings with a clear file reference.
+- `new_findings[].kind` — required. Either `"new"` (introduced by changes since the prior review, found in the delta) or `"missed"` (existed in the PR all along but was NOT flagged by the prior review). The pipeline uses this distinction to surface "the original review missed something" prominently to reviewers.
+- `new_findings` (other fields) — same schema as `findings-v1` from author-review (file, line, severity, title, message). Include only findings with a clear file reference.
 
 Consistency rules:
 
 - Every entry in `prior_findings_status` must correspond to a real prior finding — either from a `findings-v1` JSON marker (AI source) or from a human inline review comment (human source). Don't fabricate or drop findings without an entry here.
 - Every entry in the prose Prior Findings Status section above must also appear in this JSON, and vice versa.
+- Don't emit a `missed` finding that's actually a `still-present` prior finding in disguise. If it matches a prior finding (even at a different file:line after rename/move), keep it in `prior_findings_status` with the appropriate status. `missed` is for issues that have NO prior-finding counterpart.
 
 ---
 
