@@ -4,7 +4,6 @@ PCI's plugin marketplace to distribute Claude Code extensions across teams.
 
 ## Available Plugins
 
-- **[QA Playwright](plugins/qa-playwright/README.md)** - Playwright testing and automation tools
 - **[Engineer Toolkit](plugins/engineer-toolkit/README.md)** - Code review and architecture analysis
 
 ## Installation
