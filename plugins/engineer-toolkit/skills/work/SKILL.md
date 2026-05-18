@@ -176,7 +176,7 @@ Locked to chat: <L> items have Mode: direct (<comma-separated keys>)
 
 Write a single-file dark-themed HTML report to `<workspace>\dashboard.html` containing the same per-item data, rendered as a card/table action board. Color-code rows by `Status:`, show `Jira Status:` and `Branch` as clickable links where applicable, mark `Mode: direct` items with a distinct badge. The Launch preview panel auto-renders the file. The chat output remains the markdown table above — the HTML is the readable surface, the chat block is the at-a-glance.
 
-**Make file paths clickable as VS Code links** (see CLAUDE.md `## Output Format` > "Open-in-editor links"). For each Active item, render these as `vscode://file/<absolute-path>` anchors:
+**Make file paths clickable as VS Code links** (see the workspace doctrine > "Output Format" > "Open-in-editor links" — loaded via `@import` from CLAUDE.md). For each Active item, render these as `vscode://file/<absolute-path>` anchors:
 
 - The Key column (or the row title) → links to `<workspace>\Active\<DIR>\<DIR>.md`
 - If `<workspace>\Active\<DIR>\spec.md` exists → small "spec" badge linking to it
@@ -245,7 +245,7 @@ Skipped (Mode: direct): <KEY>, <KEY>, ...
    - On any error, log to summary and continue — do NOT block dev work.
    - On success, optimistically update the local `Jira Status:` line to `In Development`.
 
-4. After dispatch, the subagent runs `engineer-toolkit:author-review` as the final pre-PR step (per CLAUDE.md > Agent Workflow > Review phase) and opens the PR with the author-review summary as the description.
+4. After dispatch, the subagent runs `engineer-toolkit:author-review` as the final pre-PR step and opens the PR with the author-review summary as the description.
 
 Subagents launch concurrently.
 

@@ -64,13 +64,19 @@ After `/workspace-init`, your workspace looks like:
 
 ```
 <workspace>\
-├── CLAUDE.md                      ← workflow rules + your Configuration block
-├── Active\                        ← work items currently in flight
-├── Complete\                      ← finished work (auto-swept here by /work)
-├── Archive\                       ← long-term storage (>30 days complete)
-└── PlanningWorkspace\             ← shared read-only clones of repos
+├── CLAUDE.md                       ← your editable Configuration + one @import line
+├── .engineer-toolkit\              ← plugin-managed (refresh overwrites)
+│   ├── workflow.md                 ← workflow doctrine: critical rules, output format,
+│   │                                 issue file format, two-field status, etc.
+│   └── VERSION                     ← plugin version, plain text
+├── Active\                         ← work items currently in flight
+├── Complete\                       ← finished work (auto-swept here by /work)
+├── Archive\                        ← long-term storage (>30 days complete)
+└── PlanningWorkspace\              ← shared read-only clones of repos
     └── CLAUDE.md
 ```
+
+`CLAUDE.md` imports the doctrine via Claude Code's `@filepath` syntax — at session start both files load into context as one merged document. You edit your `CLAUDE.md` freely; `refresh` only touches the `.engineer-toolkit\` folder.
 
 Path-scoped coding rules (`<workspace>\.claude\rules\*.md`) are not shipped by the plugin — drop your own there if you want them. See https://code.claude.com/docs/en/memory#path-specific-rules.
 
@@ -86,7 +92,7 @@ PCI-wide values (Jira CloudId, project keys) are also listed there for reference
 
 ## Updating
 
-After the plugin is updated (`/plugin` → Update), re-run `/workspace-init` and pick `refresh` if you want the latest `CLAUDE.md` template. Your `Active\`, `Complete\`, `Archive\`, and `.claude\rules\` folders are never touched.
+After the plugin is updated (`/plugin` → Update), re-run `/workspace-init` and pick `refresh` to pull the latest workflow doctrine into `.engineer-toolkit\workflow.md`. Your `CLAUDE.md`, `Active\`, `Complete\`, `Archive\`, and `.claude\rules\` are never touched. If you're upgrading from a pre-split workspace (single-file CLAUDE.md), `/workspace-init` detects this and offers a one-time migration that backs up your old file.
 
 ## Review flows
 

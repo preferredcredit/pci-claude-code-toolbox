@@ -25,7 +25,7 @@ Hardcoded in this skill:
 - Active issues folder: `<workspace>\Active\`
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
 - Envs accepted: `dev`, `qa`, `staging`
-- Per-app URLs (dev / qa / staging): read from each repo's `CLAUDE.md` `## Environments` section. See `<workspace>\CLAUDE.md` "Local Smoke Testing" for the schema. `QA\Environments.md` is a fallback only.
+- Per-app URLs (dev / qa / staging): read from each repo's `CLAUDE.md` `## Environments` section. See the workspace doctrine > "Local Smoke Testing" for the schema. `QA\Environments.md` is a fallback only.
 
 ## Invocation
 
