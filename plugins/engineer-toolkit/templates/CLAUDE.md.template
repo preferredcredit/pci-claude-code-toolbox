@@ -1,0 +1,24 @@
+# ClaudeWorkspace
+
+## Configuration
+
+**User-specific** (managed by `/workspace-init`):
+
+| Setting | Value |
+|---|---|
+| Workspace path | `{{WORKSPACE_PATH}}` |
+| User Account ID | `{{USER_ACCOUNT_ID}}` |
+| User Name | `{{USER_DISPLAY_NAME}}` |
+
+**Org-wide** (PCI defaults; edit if PCI ever changes them):
+
+| Setting | Value |
+|---|---|
+| Jira CloudId | `19ff5866-fc24-4369-81c2-4b8de43058a3` |
+| Jira site | `https://preferredcredit.atlassian.net` |
+| Primary projects | `CRD`, `CO`, `CHANGE` |
+| Discovery JQL | `project in (CRD, CO) AND status != Complete AND assignee = currentUser()` |
+
+In this document, `<workspace>` refers to the Workspace path above.
+
+@.engineer-toolkit/workflow.md
