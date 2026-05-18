@@ -56,43 +56,11 @@ Windows paths use forward slashes after the scheme: `vscode://file/C:/ClaudeWork
 
 **Don't** write HTML for: chat responses to simple questions, in-conversation reasoning, intermediate tool-call narration, or content that belongs in a committed `.md` file (spec / plan / issue Discussion).
 
-## Jira Statuses by Project
+## Jira Transitions
 
-Jira status IDs and transition IDs vary per project. Always use `getTransitionsForJiraIssue` to discover available transitions from the current state; the tables below document commonly-used IDs.
+Workflow skills (`/work`, `/direct`) discover Jira transitions dynamically: call `getTransitionsForJiraIssue` first, then match by the transition's target status **name** (e.g. "In Development"). Status IDs and transition IDs are never cached here — they vary by project and Jira admins can reshape workflows at any time. New projects work automatically without template edits.
 
-### CO (Core Origination)
-
-| Status | Status ID |
-|--------|-----------|
-| Open | 1 |
-| In Development | 10021 |
-| In Code Review | 10033 |
-| Development Complete | 10035 |
-| Ready for QA Testing | 10024 |
-| Complete | 10023 |
-
-Known transitions:
-| From | Transition Name | Transition ID | To |
-|------|----------------|---------------|-----|
-| Open | Start Development | 2 | In Development |
-| Development Complete | Back to In Code Review | 10 | In Code Review |
-| Development Complete | Ready for QA | 11 | Ready for QA Testing |
-| Any | Complete (global) | 21 | Complete |
-
-### CRD (Credit Risk & Decisioning, formerly NGU)
-
-Workflow stages: Backlog → Analysis → Development → Code Review → Dev Complete → QA → QA Complete → Complete → Deployed.
-
-| Status | Status ID |
-|--------|-----------|
-| Open | 1 |
-| Backlog | 10132 |
-| Code Review | 10322 |
-| Complete | 10023 |
-
-Other stage IDs (Analysis, Development, Dev Complete, QA, QA Complete, Deployed) not yet cataloged — look up on demand via `getTransitionsForJiraIssue`.
-
-**Legacy NGU keys:** Old `NGU-###` issue keys now resolve to `CRD-###` (e.g., `NGU-232` → `CRD-232`). Issue folders under `Active\`/`Complete\` named `NGU-###` are historical.
+**Legacy `NGU-###` keys:** Old keys now resolve server-side to `CRD-###` (e.g. `NGU-232` → `CRD-232`). Issue folders under `Active\` / `Complete\` named `NGU-###` are historical.
 
 ## Creating Issues
 
@@ -288,10 +256,6 @@ Work that doesn't have a Jira ticket — investigations, debugging spikes, cross
 - No automatic Jira transition during dev work.
 - `Tier:` and `Mode:` fields work identically to ticketed items — `Tier:` set during Triage, `Mode: direct` written only by `/direct`.
 - `/direct <slug>` does NOT auto-scaffold for adhoc — the slug must already exist (created via `/adhoc`). Adhoc creation is a deliberate act, unlike ticketed where the Jira key already exists upstream.
-
-## AccountMate Discovery (separate workspace)
-
-A multi-month read-only AccountMate discovery & replacement-design program lives in `<workspace>\AccountMate\`. It has its own `CLAUDE.md`, `STATE.md`, question backlog, and (eventually) MCP config. Do NOT dispatch `/work` agents into it. Do NOT modify any of its files from this session — it is owned by a separately-rooted Claude session opened directly in that folder. To check program status from here, read `AccountMate\STATE.md`. To work on it, open Claude rooted in `AccountMate\`.
 
 ## Communication
 
