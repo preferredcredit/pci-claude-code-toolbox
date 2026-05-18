@@ -1,6 +1,6 @@
 ---
 name: workspace-init
-description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks prerequisites, prompts for user-specific config, and scaffolds the workspace folder structure with templated CLAUDE.md and rules.
+description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks plugin prereqs, CLI binaries (git, gh, dotnet), prompts for user-specific config, and scaffolds the workspace with templated CLAUDE.md.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Glob, AskUserQuestion, mcp__plugin_atlassian_atlassian__atlassianUserInfo
@@ -65,21 +65,90 @@ Continue with workspace setup anyway? (yes / no)  [default: no]
 
 If the user picks `no`, exit without scaffolding.
 
+## Phase 0.5 — CLI binary check
+
+Warn-only: these tools aren't validated by the plugin system but are required by individual skills later in the workflow. The checks don't gate initialization — they tell the user what'll break and where.
+
+Run the checks in parallel via Bash. Treat a non-zero exit as "not configured."
+
+| Tool | Why it matters | Check |
+|---|---|---|
+| `git` | All repo cloning + branch ops in `/work`, `/direct`, `/smoke` | `git --version` |
+| `gh` | `gh pr create` in `/work` Phase 6 Wrap; also verifies the user is logged in | `gh --version && gh auth status` |
+| `dotnet` | `dotnet build`/`dotnet test` in `/author-review` and `/smoke` | `dotnet --version` |
+
+For each failed check, print:
+
+```
+[!] CLI tool not configured: <tool>
+    Needed by: <skill list>
+    Install: <one-line pointer>
+    Continuing — will fail later when that skill runs.
+```
+
+Suggested install pointers:
+
+- `git` → `winget install Git.Git` (or https://git-scm.com/)
+- `gh` not installed → `winget install GitHub.cli`
+- `gh` installed but not logged in → `gh auth login`
+- `dotnet` → `winget install Microsoft.DotNet.SDK.9`
+
+Then always print one info note (regardless of outcomes above):
+
+```
+[i] Dashboard links use vscode://file/<path>. If you use a different editor:
+      Cursor              → works automatically (cursor://file/<path>)
+      VS Code Insiders    → works automatically (vscode-insiders://file/<path>)
+      Visual Studio, JetBrains, Sublime → no native URL handler; links open the OS picker
+    Override in <workspace>\CLAUDE.md under "Open-in-editor links".
+```
+
+No prompt. Proceed to Phase 1 regardless.
+
 ## Phase 1 — Detect existing workspace
 
 Default workspace path: `C:\ClaudeWorkspace`.
 
-If the default path exists AND contains any of: `CLAUDE.md`, `Active\`, `Complete\` — treat it as an existing workspace and prompt:
+If the default path exists AND contains any of: `CLAUDE.md`, `Active\`, `Complete\` — treat it as an existing workspace.
+
+### Classify the existing CLAUDE.md (refresh safety)
+
+Inspect `<workspace>\CLAUDE.md` before offering choices, so the prompt can show what `refresh` would actually do:
+
+1. **Parse the version stamp.** Look at the first non-blank line for `<!-- engineer-toolkit template v<X.Y.Z> ... -->`. Extract `<X.Y.Z>` as `STAMPED_VERSION` (or `none` if absent).
+2. **Read the plugin version** from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` → `version` (call it `CURRENT_VERSION`).
+3. **Detect local edits.** Read the shipped template, substitute these into a temporary in-memory copy:
+   - `{{WORKSPACE_PATH}}` → the path being inspected
+   - `{{USER_ACCOUNT_ID}}` and `{{USER_DISPLAY_NAME}}` → values from `atlassianUserInfo` if available, otherwise the corresponding lines in the existing file
+   - `{{TEMPLATE_VERSION}}` → `STAMPED_VERSION` (so the version-stamp line doesn't itself read as a diff)
+   Diff that substituted template against the on-disk file, ignoring trailing whitespace and blank-line-only changes. Count the changed lines.
+4. **Pick a classification tag** for the prompt:
+   - `(up to date)` — `STAMPED_VERSION == CURRENT_VERSION` AND 0 local-edit lines
+   - `(version <STAMPED> → <CURRENT>, no local edits)` — version bump, clean
+   - `(local edits: N lines)` — non-zero local-edit lines, version stamp matches
+   - `(version <STAMPED> → <CURRENT>, local edits: N lines)` — both
+   - `(unstamped, possible local edits: N lines)` — `STAMPED_VERSION` is `none`
+
+### Prompt
 
 ```
-Workspace at <path> already has files.
-  refresh        — overwrite CLAUDE.md and .claude/rules/* with the latest templates;
+Workspace at <path> already has files. <classification tag>
+  refresh        — overwrite CLAUDE.md and PlanningWorkspace\CLAUDE.md with the latest templates;
                    Active\, Complete\, Archive\ are never touched.
   pick-different — choose a different workspace path.
   cancel         — exit without changes.
 ```
 
-If the existing workspace's `CLAUDE.md` differs from the shipped template (run a quick diff against the plugin's `templates/CLAUDE.md.template`), include an inline note: `CLAUDE.md has local edits.`
+### Behavior when the user picks `refresh`
+
+- **0 local-edit lines:** proceed silently to Phase 2.
+- **Any local-edit lines:** show a unified-diff summary capped at 30 lines (truncate with `... (N more)`), then require a second explicit confirmation:
+
+  ```
+  Refresh will overwrite the local edits shown above. Type `overwrite` to proceed, anything else to cancel.
+  ```
+
+  Before writing, back up the existing file to `<workspace>\CLAUDE.md.bak-<YYYYMMDDHHMMSS>`. Note the backup path in Phase 4's summary.
 
 If the default path does NOT exist, skip directly to Phase 2 with the default path.
 
@@ -109,11 +178,13 @@ Substitute the collected values into the templates and write the resulting files
 
 2. Write `<workspace>\CLAUDE.md`:
    - Read `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`
+   - Read `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` → `version` (for the version-stamp substitution)
    - Substitute placeholders:
+     - `{{TEMPLATE_VERSION}}` → the plugin version (so the first-line stamp reads `<!-- engineer-toolkit template vX.Y.Z ... -->`)
      - `{{WORKSPACE_PATH}}` → the collected workspace path
      - `{{USER_ACCOUNT_ID}}` → the collected Jira account ID
      - `{{USER_DISPLAY_NAME}}` → the collected display name
-   - Write the resulting file. **Overwrite without prompting only if Phase 1 returned `refresh`** OR the file didn't exist before this run.
+   - Write the resulting file. **Overwrite without prompting only if Phase 1 returned `refresh` AND the local-edits count was 0**. If Phase 1 detected local edits, the explicit `overwrite` confirmation from Phase 1 is required first; otherwise leave the file alone and log a warning in Phase 4.
 
 3. Write `<workspace>\PlanningWorkspace\CLAUDE.md`:
    - Read `${CLAUDE_PLUGIN_ROOT}/templates/PlanningWorkspace.CLAUDE.md.template`
@@ -143,7 +214,12 @@ Next steps:
   /work                    Run a work-loop pass once you have items
 ```
 
-If Phase 1 returned `refresh`, the "Created:" list becomes "Updated:" and lists only files that were overwritten.
+If Phase 1 returned `refresh`, the "Created:" list becomes "Updated:" and lists only files that were overwritten. If a backup was created during Phase 1, add a line:
+
+```
+Backed up:
+  CLAUDE.md.bak-<YYYYMMDDHHMMSS>   (previous CLAUDE.md before refresh)
+```
 
 ## Safety rules
 

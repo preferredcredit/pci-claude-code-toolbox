@@ -1,21 +1,26 @@
+<!-- engineer-toolkit template v{{TEMPLATE_VERSION}} - do not remove; /workspace-init reads this line to decide whether refresh is safe -->
 # ClaudeWorkspace - Jira Issue Workflow
 
 ## Configuration
 
+**User-specific** (managed by `/workspace-init` — these get rewritten on every `refresh`, so don't edit by hand):
+
 | Setting | Value |
 |---|---|
 | Workspace path | `{{WORKSPACE_PATH}}` |
-| Jira CloudId | `19ff5866-fc24-4369-81c2-4b8de43058a3` |
-| Jira site | `https://preferredcredit.atlassian.net` |
 | User Account ID | `{{USER_ACCOUNT_ID}}` |
 | User Name | `{{USER_DISPLAY_NAME}}` |
+
+**Org-wide constants** (PCI defaults; safe to edit by hand if they ever change. `/workspace-init` refresh detects edits below and prompts before overwriting):
+
+| Setting | Value |
+|---|---|
+| Jira CloudId | `19ff5866-fc24-4369-81c2-4b8de43058a3` |
+| Jira site | `https://preferredcredit.atlassian.net` |
 | Primary projects | `CRD`, `CO`, `CHANGE` |
+| Discovery JQL | `project in (CRD, CO) AND status != Complete AND assignee = currentUser()` |
 
-These values are read by the Jira-driven dev workflow skills in the `engineer-toolkit` plugin. Workspace path and User Account ID are set by `/workspace-init`. The rest are PCI-wide constants.
-
-Discovery JQL: `project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
-
-In this document, `<workspace>` refers to the Workspace path from the table above.
+In this document, `<workspace>` refers to the Workspace path from the User-specific table above.
 
 ## Critical Rules
 
