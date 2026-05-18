@@ -1,0 +1,578 @@
+# ClaudeWorkspace - Jira Issue Workflow
+
+## Configuration
+
+| Setting | Value |
+|---|---|
+| Workspace path | `{{WORKSPACE_PATH}}` |
+| Jira CloudId | `19ff5866-fc24-4369-81c2-4b8de43058a3` |
+| Jira site | `https://preferredcredit.atlassian.net` |
+| User Account ID | `{{USER_ACCOUNT_ID}}` |
+| User Name | `{{USER_DISPLAY_NAME}}` |
+| Primary projects | `CRD`, `CO`, `CHANGE` |
+
+These values are read by skills in the `agentic-dev-toolkit` plugin. Workspace path and User Account ID are set by `/adt-init`. The rest are PCI-wide constants.
+
+Discovery JQL: `project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
+
+In this document, `<workspace>` refers to the Workspace path from the table above.
+
+## Critical Rules
+
+**Planning agents:** Read from PlanningWorkspace. NEVER clone repos. NEVER modify files.
+
+**Development agents:**
+- Clone to AgentWorkspace (shallow). Create branches. Modify files.
+- If AgentWorkspace already exists, ALWAYS run `git pull` to ensure you have the latest changes.
+
+**All agents:** Prefix commits with `[Claude]`. Never force push. Never skip hooks.
+
+## Output Format
+
+Prefer **HTML** for transient, scannable output. The Launch preview panel auto-renders any HTML file written under `<workspace>\`, so the cost of choosing HTML is zero.
+
+| Output | Format |
+|---|---|
+| Dashboards, status boards, action lists, "what next" surfaces | HTML at `<workspace>\dashboard.html` (overwritten each time) |
+| Comparison tables, code-review summaries, audit reports, multi-bucket analyses | HTML at `<workspace>\dashboard.html` |
+| Committed deliverables — `spec.md`, `plan.md`, issue files, PR descriptions, commit messages, Discussion entries | Markdown |
+| Code, configs, source files | Code |
+| One-paragraph answers, single-line confirmations, terse status updates | Plain text in chat |
+
+**Heuristic:** if the output has 3+ groups, sortable/filterable rows, or "the user is going to scan this and pick something to act on," it's HTML-worthy. If it's one fact or one answer, plain chat wins.
+
+**Pairing rule:** when you write HTML, also produce a compact chat summary (one paragraph or short bulleted list). The HTML is the cockpit; the chat reply is the heads-up. Don't paste the HTML's full content back into chat.
+
+**Default styling:** dark theme, card-based sections, color-coded by action type/severity, monospace badges for keys/IDs, clickable links for anything actionable (Jira issue, PR, branch, file path). No emojis unless explicitly requested. Single-file (inline CSS, no external assets) so it renders standalone.
+
+**Don't** write HTML for: chat responses to simple questions, in-conversation reasoning, intermediate tool-call narration, or content that belongs in a committed `.md` file (spec / plan / issue Discussion).
+
+## Jira Statuses by Project
+
+Jira status IDs and transition IDs vary per project. Always use `getTransitionsForJiraIssue` to discover available transitions from the current state; the tables below document commonly-used IDs.
+
+### CO (Core Origination)
+
+| Status | Status ID |
+|--------|-----------|
+| Open | 1 |
+| In Development | 10021 |
+| In Code Review | 10033 |
+| Development Complete | 10035 |
+| Ready for QA Testing | 10024 |
+| Complete | 10023 |
+
+Known transitions:
+| From | Transition Name | Transition ID | To |
+|------|----------------|---------------|-----|
+| Open | Start Development | 2 | In Development |
+| Development Complete | Back to In Code Review | 10 | In Code Review |
+| Development Complete | Ready for QA | 11 | Ready for QA Testing |
+| Any | Complete (global) | 21 | Complete |
+
+### CRD (Credit Risk & Decisioning, formerly NGU)
+
+Workflow stages: Backlog → Analysis → Development → Code Review → Dev Complete → QA → QA Complete → Complete → Deployed.
+
+| Status | Status ID |
+|--------|-----------|
+| Open | 1 |
+| Backlog | 10132 |
+| Code Review | 10322 |
+| Complete | 10023 |
+
+Other stage IDs (Analysis, Development, Dev Complete, QA, QA Complete, Deployed) not yet cataloged — look up on demand via `getTransitionsForJiraIssue`.
+
+**Legacy NGU keys:** Old `NGU-###` issue keys now resolve to `CRD-###` (e.g., `NGU-232` → `CRD-232`). Issue folders under `Active\`/`Complete\` named `NGU-###` are historical.
+
+## Creating Issues
+
+When the user describes a new issue conversationally:
+
+1. **Shape it** - Draft a concise summary and markdown description from their input
+2. **Confirm** - Show the summary, description, type, and priority before creating
+3. **Create** - Use `createJiraIssue` with these defaults:
+   - cloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
+   - projectKey: `NGU`
+   - issueTypeName: `Story` (prefer Story over Task - Tasks have a different/incomplete workflow)
+   - assignee_account_id: the User Account ID from `## Configuration` (always assign to the workflow user)
+   - priority: Pass as `additional_fields: {"priority": {"name": "<value>"}}`
+   - story points (optional): Pass as `additional_fields: {"customfield_10057": <number>}` (e.g. 0.5, 1, 2, 3, 5, 8)
+**Priority values:** Critical - Immediate, Highest, High, Medium, Low, Lowest. Default to Medium unless the user specifies.
+
+**Other custom fields (optional):**
+- Technical Details: `"customfield_10059": "<text>"`
+- System Component: `"customfield_11455": [{"value": "<component name>"}]`
+
+**Description style:** Use markdown. Bullet points for lists of changes. Bold for section headers. Keep it concise.
+
+## Package Versioning (Cross-Repo Changes)
+
+When modifying NextGen.Gateway.Client or NextGen.Gateway.Server:
+1. Increment version in NextGenOrig `.csproj` files
+2. After merge/publish, update Gateway.Web package references to match
+
+## Scanning Issues (go flag)
+
+This scan happens inside `/work` (Phase 5). The rules below describe the mechanic.
+
+**Quick check:** Read first 2 characters of each issue file.
+- Starts with `go` → Agent's turn, process this issue
+- Anything else → Skip, not agent's turn
+
+**Rules:**
+- Case-insensitive (`go`, `Go`, `GO` all work)
+- Agent removes `go` line when done (waiting for user)
+- User adds `go` line back when ready for agent action
+- If user adds comments after `go` line, copy them to Discussion as `[user]` entry before processing
+
+## Folder Structure
+
+```
+<workspace>\
+  PlanningWorkspace\            # Shared read-only repos (always on main)
+    NextGenOrig\
+    Gateway.Web\
+    CustomerEngagement.Web\
+    ClientPortal.Sidecar.Web\
+    Origination\
+  Active\
+    NGU-###\                    # Ticketed work (Jira-keyed)
+      NGU-###.md                # Issue file (lean)
+      spec.md                   # Full tier only — design from superpowers:brainstorming
+      plan.md                   # Standard + Full tiers — from superpowers:writing-plans
+      AgentWorkspace\           # Created only when Execute phase starts (shallow clone)
+    <slug>\                     # Adhoc work (kebab-case slug)
+      <slug>.md                 # Issue file, no Jira: line
+      spec.md                   # Optional, Full tier only
+      plan.md                   # Optional, Standard + Full tiers
+      AgentWorkspace\           # Optional, if code was touched
+  Complete\
+    NGU-###\
+      NGU-###.md                # Kept for reference
+      spec.md                   # Kept for reference (Full tier only)
+      plan.md                   # Kept for reference
+  Archive\
+    NGU-###\
+      NGU-###.md                # Older issues (30+ days)
+```
+
+## PlanningWorkspace
+
+Location: `<workspace>\PlanningWorkspace\`
+
+Contains full clones of all repos, always on main branch. Updated before planning phases.
+
+**See `PlanningWorkspace\CLAUDE.md` for repo URLs and tech details.**
+
+**Rules:**
+- READ ONLY - never modify files
+- Never switch branches
+- Never commit or push
+
+**Update command (run before planning):**
+```
+Bash(cd <workspace>/PlanningWorkspace && for dir in */; do (cd "$dir" && git fetch origin && git reset --hard
+      origin/main); done)
+```
+
+## Issue File Format
+
+**Agent's turn** (file starts with `go`):
+```markdown
+go
+# [Issue Title]
+
+Status: Planning | Development | Code Review | Development Complete | Complete
+Tier: Trivial | Standard | Full
+Mode: direct
+Priority: High | Medium | Low
+Branch: [link]
+PR: [link]
+Blocked:
+Jira: https://preferredcredit.atlassian.net/browse/NGU-###
+Jira Status: [verbatim Jira status name, refreshed by /work Phase 2]
+
+## Discussion
+_(Newest first - format: [agent] message)_
+
+[agent] message...
+
+## Description
+[From Jira]
+```
+
+**Not agent's turn** (file starts with `#`):
+```markdown
+# [Issue Title]
+
+Status: Planning | Development | Code Review | Development Complete | Complete
+Tier: Trivial | Standard | Full
+Mode: direct
+...
+```
+
+**Field notes:**
+- `Tier:` set during Phase 1 Triage. One of `Trivial` (skip spec + plan), `Standard` (skip spec, write plan), `Full` (write both). Locked once set unless explicitly retriaged.
+- `Mode:` only ever `direct` or absent. `Mode: direct` means the issue is locked to a chat session opened via `/direct`; `/work` skips it. Absent = async-eligible.
+- `Blocked:` empty when not blocked, contains reason when blocked.
+- `Jira Status:` only on ticketed items (omit for adhoc).
+
+## Two-Field Status Model
+
+Local issue files have **two** status fields with very different ownership:
+
+| Field | Owner | What it represents |
+|-------|-------|--------------------|
+| `Status:` | Claude / orchestrator / user (local) | Where the work is in the **local** workflow — drives what `/work` does next |
+| `Jira Status:` | `/work` Phase 2 (read-only mirror of Jira) | The current Jira ticket status, refreshed every `/work` run |
+
+**Why two fields:** "Code Review" locally means "agent finished, PR is up, awaiting human review." Jira's "Code Review" status is a separate, formal stage the user transitions manually after merging. These cadences naturally diverge — local progresses faster — and conflating them caused the local field to oscillate every time `/work` ran. The two fields are now decoupled.
+
+**Rules:**
+- Only Phase 2 of `/work` writes `Jira Status:`. Nothing else touches it.
+- `Status:` is owned by whoever is currently driving the work (planning agent, dev agent, user). `/work` reads it to decide what to dispatch but never overwrites it from Jira.
+- The dashboard shows both side by side; mismatch is normal (e.g., local `Code Review`, Jira `In Development` while the user reviews the PR before transitioning Jira).
+- Sweep (move to `Complete\`) triggers on either: local `Status: Complete`, OR `Jira Status: Complete` / `Development Complete`. Either source declaring "done" removes it from `Active\`.
+
+### `Tier:` and `Mode:` fields
+
+`Tier:` and `Mode:` live alongside `Status:` but are owned independently. `Tier:` is set once during Triage and gates which phases run (see Workflow Phases). `Mode:` toggles whether the issue is locked to a chat session — `Mode: direct` means `/work` must skip it. See "Issue File Format" for the field shapes and lifecycle.
+
+### Local `Status:` values (the ones Claude/`/work` cares about)
+
+| Status | Meaning | `/work` Phase 5 action |
+|--------|---------|------------------------|
+| Planning | Claude researching/designing | Dispatch planning subagent |
+| Development | Claude coding (branch exists) | Resume dev subagent |
+| Code Review | PR created, waiting for human review | None (skip with warning if `go` set) |
+| Development Complete | Local work done, awaiting Jira transition | None (skip with warning if `go` set) |
+| Complete | Done locally — sweep eligible | Sweep, no dispatch |
+
+`In Development` is also accepted as a synonym for `Development` (Jira's spelling). For pure parity, files may carry `QA`, `QA Complete`, or `Deployed` as local statuses, but `/work` treats them as non-actionable (same as `Code Review`).
+
+### `Jira Status:` values
+
+Whatever Jira says — passed through verbatim, including casing (e.g. `In Development`, `Development Complete`, `Ready for QA Testing`). Phase 2 normalises by trimming only.
+
+## Workflow Phases
+
+Both modes (`/work` async, `/direct` direct) drive the same phase sequence. Phase 0 setup always runs first; Phase 1 Triage determines tier; remaining phases run conditionally per tier.
+
+### Phase 0: Setup
+
+1. Folder created at `Active\<KEY>\` (or `Active\<slug>\`) if missing.
+2. Jira Status refreshed (ticketed items only).
+3. Shallow clone of required repos into `AgentWorkspace\` (only when Execute phase begins).
+4. Branch `fb/<KEY>` created and pushed (only when Execute phase begins).
+
+For ticketed items, if the folder doesn't exist, `/direct` auto-runs `/jira-import` to scaffold it.
+
+### Phase 1: Triage
+
+Claude reads the issue file plus the directly relevant code/spec and proposes one of three tiers:
+
+| Tier | Spec | Plan | Examples |
+|------|------|------|----------|
+| **Trivial** | skip | skip | Version bump, rename, one-line fix, doc typo |
+| **Standard** | skip | write `plan.md` | Few files, no architectural decisions, follows existing patterns |
+| **Full** | write `spec.md` | write `plan.md` | New surface area, cross-repo, ambiguous requirements, design decisions |
+
+In direct mode (`/direct`), the user confirms or overrides. In async mode (`/work`), the dispatched subagent commits the tier and logs it in Discussion. Tier is locked once written; user can retriage by editing the file and re-flagging `go`.
+
+### Phase 2: Spec (Full tier only)
+
+Invokes `superpowers:brainstorming`. Output saved to `Active\<KEY>\spec.md`. (The skill's default location is `docs/superpowers/specs/...`; override to the issue folder.)
+
+In direct mode: spec is built interactively with the user.
+In async mode: dispatched subagent builds spec autonomously and Discussion captures the summary.
+
+### Phase 3: Plan (Standard + Full tiers)
+
+Invokes `superpowers:writing-plans`. Output saved to `Active\<KEY>\plan.md`.
+
+In direct mode: plan is shown to user for review.
+In async mode: subagent finishes plan, sets `Status: Code Review`, removes `go` line — user reviews plan.md and re-adds `go` to approve.
+
+### Phase 4: Execute (all tiers)
+
+Direct mode: invokes `superpowers:subagent-driven-development`. Sub-subagents implement tasks; the chat session reviews between them.
+Async mode: invokes `superpowers:executing-plans`. Dispatched subagent runs the plan with internal review checkpoints.
+
+When Execute begins:
+- AgentWorkspace clones happen if not already (Phase 0 deferred to first need).
+- Branch `fb/<KEY>` created.
+- Ticketed items get an auto Jira transition to "In Development" (see Jira Statuses by Project for transition IDs).
+
+### Phase 5: Review (all tiers)
+
+Invokes `engineer-toolkit:author-review`. The skill internally:
+
+1. Runs `dotnet build` and `dotnet test` against the affected solution.
+2. Delegates to `engineer-toolkit:code-reviewer` agent (always).
+3. Delegates to `engineer-toolkit:architect-review` agent (Complex changes only; mapped from `Tier: Full`).
+4. Produces a structured review summary with risk score, cost-of-change, and findings — designed for direct paste into PR description.
+
+Build/test failures here are blocking. Critical findings should be addressed before opening PR.
+
+`superpowers:verification-before-completion` is the discipline that applies throughout Phase 4 — Phase 5 is the formal gate before PR.
+
+### Phase 6: Wrap
+
+1. Commit, push, open PR via `gh pr create` — body sourced from author-review summary.
+2. Update issue file: `Status: Code Review`, `PR: <link>`.
+3. Clear `Mode: direct` if it was set.
+4. Discussion entry: `[agent] Implementation complete. PR: <link>. Author-review: <risk-score>/10, cost: <reversible/moderate/irreversible>.`
+
+User reviews PR in Azure DevOps; after merge, user transitions Jira (typically to "Development Complete"). On next `/work` cycle, Phase 2 picks up the Jira change and Phase 3 sweeps the folder to `Complete\`.
+
+### Archive
+
+After 30 days in `Complete\`: move to `Archive\`. (Unchanged from before.)
+
+## Agent Workflow
+
+Workflow phases invoke superpowers skills as their primary mechanism. Legacy agents (`fullstack-planning`, `Plan`, `prompt-engineer`, the Phase 1.5 plan-cleanup `code-reviewer` step) are removed.
+
+### Spec phase (Full tier)
+
+| Skill | Purpose |
+|-------|---------|
+| `superpowers:brainstorming` | Iterative Q&A to produce a spec at `Active\<KEY>\spec.md`. |
+
+Tools available inside brainstorming for research:
+- `Explore` agent (codebase discovery)
+- `general-purpose` agent (catch-all)
+
+### Plan phase (Standard + Full tiers)
+
+| Skill | Purpose |
+|-------|---------|
+| `superpowers:writing-plans` | Convert spec (or issue description directly, for Standard tier) into bite-sized tasks with file paths, exact code, and verification steps. Output saved to `Active\<KEY>\plan.md`. |
+
+### Execute phase
+
+| Mode | Skill | Notes |
+|------|-------|-------|
+| Direct (`/direct`) | `superpowers:subagent-driven-development` | Spawns one sub-subagent per task in the current chat. User reviews between tasks. |
+| Async (`/work`) | `superpowers:executing-plans` | Dispatched subagent runs plan in a separate session with internal review checkpoints. |
+
+`superpowers:verification-before-completion` is the discipline applied throughout Execute — never claim a task complete without running the verification command from the plan and confirming the expected output.
+
+For .NET work specifically: always run `dotnet build <solution>` after edits, before claiming the task done.
+
+### Review phase
+
+| Skill | Purpose |
+|-------|---------|
+| `engineer-toolkit:author-review` | Pre-PR self-review. Runs build/tests, delegates to `code-reviewer` (always) and `architect-review` (Complex only), produces structured summary for PR description. |
+
+Optional, on demand only (not auto-run):
+| Skill | Purpose |
+|-------|---------|
+| `engineer-toolkit:reviewer-check` | Post-PR independent reviewer pass. Validates author-review output and adds its own findings as a PR comment. |
+
+### Tier → Complexity mapping
+
+`engineer-toolkit:author-review` distinguishes Simple vs Complex changes. Map workflow tier:
+
+| Workflow Tier | author-review Complexity |
+|---------------|--------------------------|
+| Trivial | Simple |
+| Standard | Simple |
+| Full | Complex |
+
+## Git Conventions
+
+**Branch:** `fb/NGU-###`
+
+**Commits:** Always prefix with `[Claude]`
+- Example: `[Claude] Add validation for user input`
+
+**Before dev work:**
+```bash
+git fetch origin
+git log HEAD..origin/main --oneline
+git merge origin/main  # if updates exist
+```
+
+## Parallel Processing
+
+`/work` command:
+
+Two modes:
+- **Full pass** (`/work` with no argument): every phase considers every Active item.
+- **Targeted** (`/work <key-or-hint>`): phases 2–6 are scoped to a single resolved target. Phase 5 processes the target regardless of `go` flag (naming the item is consent).
+
+Argument resolution (targeted mode, in order): exact directory match, upper-cased Jira-key match, substring match. Zero or multiple matches abort with a message.
+
+Phases:
+1. **Phase 0: VPN check** via Atlassian `atlassianUserInfo`. Aborts if VPN is down.
+2. **Phase 1: Refresh PlanningWorkspace** (`git fetch` + `git reset --hard origin/main` across all repos).
+3. **Phase 2: Refresh `Jira Status:`** of ticketed items from Jira. Read-only mirror. Logs `[sync]` Discussion entry when value changes.
+4. **Phase 3: Sweep** items to `Complete\` when local `Status: Complete` OR `Jira Status:` is `Complete` / `Development Complete`. Drops `AgentWorkspace\`.
+5. **Phase 4: Dashboard.** Full pass: table of all Active items including `Tier:` and `Mode:` columns. Targeted: single-line header.
+6. **Phase 5: Process items.**
+   - Skip any item with `Mode: direct` (log `<KEY> skipped: Mode: direct (locked to chat session)` to summary).
+   - Build queue: full pass = every `go`-flagged non-direct-locked item; targeted = `<TARGET>` regardless of `go`. Targeted mode on a `Mode: direct` item errors: `<KEY> is Mode: direct. Use /direct <KEY> or remove the lock first.`
+   - For each item, dispatch based on `Status:` and `Tier:`:
+     | Status | Tier | Dispatched action |
+     |--------|------|-------------------|
+     | Planning | (unset) | Run Triage: read issue + relevant code, propose tier, write `Tier:` field, log in Discussion, proceed |
+     | Planning | Trivial | Skip directly to Execute (no spec, no plan) |
+     | Planning | Standard | Invoke `superpowers:writing-plans` → plan.md |
+     | Planning | Full | Invoke `superpowers:brainstorming` → spec.md, then `superpowers:writing-plans` → plan.md |
+     | Development | — | Invoke `superpowers:executing-plans` (clones AgentWorkspace if missing, creates branch, transitions Jira to In Development for ticketed items) |
+     | Code Review / Development Complete / Complete | — | Skip with warning |
+   - Subagents launch concurrently. Priority: High > Medium > Low, then directory name ascending.
+7. **Phase 6: Summary** (processed, swept, sync changes, warnings, items skipped due to Mode: direct).
+8. **Phase 7: Suggest next work** (full pass idle only) — unchanged.
+
+**Completion summary format:**
+```
+Done. Processed X issues:
+- NGU-###: [action taken, new status]
+- NGU-###: [action taken, new status]
+
+Skipped (Mode: direct): NGU-###, NGU-###  (if any)
+
+No issues found starting with `go`. (if none)
+```
+
+## Direct Mode
+
+`/direct <KEY>` command — opens a direct-mode session in the current chat. Workflow runs through every phase interactively rather than via dispatched subagents.
+
+### Behavior
+
+1. **Resolve `<KEY>`:**
+   - If `Active\<KEY>\` exists → load it.
+   - If not and `<KEY>` matches Jira-key pattern `^[A-Z]+-\d+$` → auto-run `/jira-import <KEY>` to scaffold the folder.
+   - If not and `<KEY>` looks like an adhoc slug → error: `Adhoc slug <KEY> doesn't exist. Use /adhoc <slug> "<title>" first.`
+
+2. **Acquire mode lock:**
+   - Write `Mode: direct` line to issue file (insert after `Status:` line, or update if present).
+   - Remove `go` flag from top of file if present.
+   - Insert Discussion entry: `[orchestrator] Direct session started.`
+
+3. **Run Phase 0 setup** if not already done (Jira sync, branch setup deferred until Execute).
+
+4. **Run Phase 1 Triage interactively:**
+   - Claude reads issue + relevant code.
+   - Proposes tier with one-sentence reasoning.
+   - User confirms or overrides via chat.
+   - Write `Tier:` field to issue file.
+
+5. **Continue through Phases 2-6** (spec / plan / execute / review / wrap) per tier, all interactive in this chat. Uses `superpowers:subagent-driven-development` in Execute phase.
+
+### Exit (no formal command)
+
+| Exit path | What happens to the issue file |
+|---|---|
+| Work completes naturally | Claude updates `Status:` to `Code Review`, sets `PR:` link, clears `Mode: direct`, logs Discussion entry. |
+| User says "park it for async" (or equivalent) | Claude clears `Mode: direct`, re-adds `go` flag. Status unchanged. |
+| User says "we're done" | Claude marks `Status: Complete`, clears `Mode: direct`. Next `/work` sweeps. |
+| Chat session just ends | File stays `Mode: direct`. Next `/direct <KEY>` resumes; `/work` skips it. |
+
+### Coexistence with `/work`
+
+- `/work` Phase 5 skips any `Mode: direct` item.
+- `/work <KEY>` targeted on a `Mode: direct` item errors and refuses to override.
+- `/direct` on an item currently being processed by a `/work`-dispatched subagent: there is no in-process coordination — if dispatched work is in flight the user should wait for `/work` to finish (typical work is fast). Once the dispatched run returns and writes back to the file, `/direct` can claim it. For practical purposes this conflict is rare since `/work` runs to completion before returning.
+
+## Local Smoke Testing
+
+The `/smoke` skill runs an autonomous local walk-through of a Jira ticket's acceptance criteria. Use it to verify your own feature branch before opening a PR. See `.claude\skills\smoke\SKILL.md` for the full phase-by-phase pipeline.
+
+**Invocation:** `/smoke <key-or-hint> [--vs] [--no-cross-write]` — local environment only. For deployed envs use `/qa`.
+
+**Workspace layout:**
+- Run state: `Active\<TARGET>\smoke.md`, `Active\<TARGET>\Screenshots\`, one `<repo>.log` per app under `Active\<TARGET>\`.
+- Persistent Playwright profile: `<workspace>\.smoke\profile\<host>\` (caches post-auth session cookies per host).
+
+**Startup modes:**
+- Default — Claude builds + starts each app via `dotnet run --launch-profile <profile>`, captures the PID, redirects output to `Active\<TARGET>\<repo>.log`. Shuts down at end-of-run.
+- `--vs` — user starts the app(s) in Visual Studio, provides log paths. Claude leaves processes running at end-of-run.
+
+**App configuration:** the canonical source for each app's solution path, startup project, launch profile, ready signal, and per-env URLs lives in the repo's own `CLAUDE.md` `## Environments` section. If absent on first encounter, `/smoke` drafts a candidate from `launchSettings.json`, asks the user to confirm, and commits the section on the current branch.
+
+**Cross-write to issue Discussion:** ticketed runs append one `[smoke]` entry to `Active\<TARGET>\<TARGET>.md` after each run. Suppress with `--no-cross-write`. Adhoc runs do not cross-write.
+
+**Auth model:** Windows Integrated Authentication via Chromium launch flags (`--auth-server-allowlist`, `--auth-negotiate-delegate-allowlist`). On the rare case the allowlist doesn't auto-negotiate, the driver opens a headed window and the orchestrator prompts the user in chat for one-time sign-in.
+
+## QA Verification
+
+The `/qa` command verifies a ticket's implementation end-to-end across the multi-app ecosystem. See `.claude\skills\qa\SKILL.md` for the full phase-by-phase pipeline.
+
+**Invocation:** `/qa <key-or-hint> <env>` — both args required. `env` is `dev`, `qa`, or `staging`. For local-branch verification, use `/smoke` instead.
+
+**Workspace layout** (under `<workspace>\QA\`):
+- `ReferenceRepos\` — read-only main clones, refreshed by `/qa` Phase 1.
+- `HowTos\` — reusable atomic actions (one .md per how-to). Grows organically.
+- `TestData\` — parameterized data templates by domain entity.
+- `Scenarios\` — named compositions of how-tos. Empty at start; emerges from repeated patterns.
+- `Environments.md` — registry mapping env names to URLs and credential pointers.
+- `Active\<key-or-slug>\` — per-run state: `run.md` (plan + execution log + verdict), `Screenshots\`, `Notes\`, optional `AgentWorkspace\` (local env only).
+- `Complete\` — closed runs (user moves manually; `/qa` does not auto-sweep).
+
+**Hybrid execution model:** each step in a how-to is tagged:
+- `[automated]` — Claude drives via Chrome MCP.
+- `[manual]` — Claude prompts user; user replies `ok | fail: <reason> | abort: <reason>`.
+- `[assertion]` — Claude executes (DB query, API call, UI inspection) and compares observed vs. expected.
+
+**Environment behaviors:**
+- `local`: Phase 3 shallow-clones the dev branch (`fb/<KEY>`) into `QA\Active\<KEY>\AgentWorkspace\`. Apps must be started manually (one at a time per the local dev workflow).
+- `dev`: No clone. Hits dev URLs. Account-creation nuance is encoded in `QA\HowTos\create-dev-account.md` (authored on demand).
+- `qa`: No clone. Hits qa URLs. Shared accounts from `QA\TestData\qa-accounts.md`.
+
+**Cross-write to issue Discussion:** ticketed runs append one `[qa]` entry to `Active\<KEY>\<KEY>.md` after each run, summarizing the verdict. Adhoc runs do not cross-write.
+
+**Bootstrap reality:** The library starts empty. First runs are slow because everything is bespoke and mostly manual. Reusable patterns are extracted to `HowTos\`, `TestData\`, and `Scenarios\` after the fact by user request (Claude does not auto-promote during a run).
+
+**Future-only:** the `qa-runner` agent at `.claude\agents\qa-runner.md` is defined for fully-automated regression / smoke passes. Not used by v1's `/qa` command, which runs in the main conversation to support manual-step interaction.
+
+## Adhoc Work
+
+Work that doesn't have a Jira ticket — investigations, debugging spikes, cross-repo audits, unticketed bug fixes — uses the same shape as ticketed work but with a kebab-case slug instead of a Jira key.
+
+**Create:** `/adhoc <slug> "<title>"` — scaffolds `Active\<slug>\<slug>.md` with the standard issue shape and `go` flag set.
+
+**Differences from ticketed work:**
+- No `Jira:` or `Jira Status:` lines in the file (the absence of `Jira:` is the marker that distinguishes the two).
+- `/work` skips Phase 2 (sync) for adhoc items; only local `Status:` exists.
+- `/work` Phase 3 sweep moves adhoc items to `Complete\` only when local `Status:` = `Complete`.
+- No automatic Jira transition during dev work.
+- `Tier:` and `Mode:` fields work identically to ticketed items — `Tier:` set during Triage, `Mode: direct` written only by `/direct`.
+- `/direct <slug>` does NOT auto-scaffold for adhoc — the slug must already exist (created via `/adhoc`). Adhoc creation is a deliberate act, unlike ticketed where the Jira key already exists upstream.
+
+**Naming rules:**
+- Kebab-case (`some-words-here`), no project prefix, no number.
+- Unique within `Active\`, `Complete\`, and `Archive\`.
+- Must not match `^[A-Z]+-\d+$` (avoids collision with Jira keys).
+
+## AccountMate Discovery (separate workspace)
+
+A multi-month read-only AccountMate discovery & replacement-design program lives in `<workspace>\AccountMate\`. It has its own `CLAUDE.md`, `STATE.md`, question backlog, and (eventually) MCP config. Do NOT dispatch `/work` agents into it. Do NOT modify any of its files from this session — it is owned by a separately-rooted Claude session opened directly in that folder. To check program status from here, read `AccountMate\STATE.md`. To work on it, open Claude rooted in `AccountMate\`.
+
+## Communication
+
+**Discussion entry format:** `[agent] message...`
+
+Examples:
+- `[Triage]` Tier=Standard: Two files, follows existing pattern. Logged tier.
+- `[brainstorming]` Designed REST API approach with 3 endpoints. See spec.md.
+- `[writing-plans]` Wrote plan.md with 5 tasks covering API + tests.
+- `[csharp-developer]` Completed implementation, 4 files modified...
+- `[orchestrator]` Answered: Use existing ValidationService pattern from UserController
+
+**Add comments when:** Milestone complete, blocker found, status change, key decision
+
+## Error Recovery
+
+| Scenario | Recovery |
+|----------|----------|
+| Clone fails | Log to Discussion, set `Blocked: Clone failed: [error]` |
+| Push rejected | `git pull --rebase origin fb/NGU-###`, resolve conflicts, retry |
+| Agent crash mid-work | Next `/work` run detects Development status, resumes from last commit |
+| Branch already exists | `git fetch origin fb/NGU-###` then `git checkout fb/NGU-###` |
+| AgentWorkspace corrupt | Delete folder, re-clone |
