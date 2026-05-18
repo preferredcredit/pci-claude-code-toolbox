@@ -65,16 +65,14 @@ After `/workspace-init`, your workspace looks like:
 ```
 <workspace>\
 ├── CLAUDE.md                      ← workflow rules + your Configuration block
-├── .claude\
-│   └── rules\
-│       ├── csharp.md
-│       └── razor.md
 ├── Active\                        ← work items currently in flight
 ├── Complete\                      ← finished work (auto-swept here by /work)
 ├── Archive\                       ← long-term storage (>30 days complete)
 └── PlanningWorkspace\             ← shared read-only clones of repos
     └── CLAUDE.md
 ```
+
+Path-scoped coding rules (`<workspace>\.claude\rules\*.md`) are not shipped by the plugin — drop your own there if you want them. See https://code.claude.com/docs/en/memory#path-specific-rules.
 
 ## Configuration
 
@@ -88,7 +86,7 @@ PCI-wide values (Jira CloudId, project keys) are also listed there for reference
 
 ## Updating
 
-After the plugin is updated (`/plugin` → Update), re-run `/workspace-init` and pick `refresh` if you want the latest `CLAUDE.md` and rules templates. Your `Active\`, `Complete\`, and `Archive\` folders are never touched.
+After the plugin is updated (`/plugin` → Update), re-run `/workspace-init` and pick `refresh` if you want the latest `CLAUDE.md` template. Your `Active\`, `Complete\`, `Archive\`, and `.claude\rules\` folders are never touched.
 
 ## Review flows
 

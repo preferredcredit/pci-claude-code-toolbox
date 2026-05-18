@@ -50,9 +50,4 @@ If work requires NuGet package changes:
 
 ## Coding patterns
 
-Patterns for `.cs`, `.razor`, and `.razor.cs` files live in **path-scoped rules** rather than here, so they load only when you're actually touching those files:
-
-- `<workspace>\.claude\rules\csharp.md` — universal C# conventions, NextGenOrig (FastEndpoints / Data Contracts / Data Providers / queries), testing, validation, naming, file locations, anti-patterns
-- `<workspace>\.claude\rules\razor.md` — Blazor component patterns (primary-ctor DI, `DisposableComponentBase`, dialogs, state machines, event bus, parallel loads, error handling)
-
-If you find yourself wanting to add a pattern reference here, add it to the appropriate rule file instead — that way it loads automatically in the files where it's relevant rather than every session.
+This template doesn't ship coding-pattern rules — teams and individual engineers manage those themselves. If you want path-scoped coding rules in this workspace, drop your own files into `<workspace>\.claude\rules\` (see https://code.claude.com/docs/en/memory#path-specific-rules for the `paths:` frontmatter format).

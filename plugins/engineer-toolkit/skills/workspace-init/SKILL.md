@@ -106,7 +106,6 @@ Substitute the collected values into the templates and write the resulting files
    - `<workspace>\Complete\`
    - `<workspace>\Archive\`
    - `<workspace>\PlanningWorkspace\`
-   - `<workspace>\.claude\rules\`
 
 2. Write `<workspace>\CLAUDE.md`:
    - Read `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`
@@ -121,9 +120,7 @@ Substitute the collected values into the templates and write the resulting files
    - Substitute `<workspace>` references where the template uses them
    - Write the resulting file (same overwrite rules as above)
 
-4. Copy rules:
-   - `${CLAUDE_PLUGIN_ROOT}/templates/rules/csharp.md` → `<workspace>\.claude\rules\csharp.md`
-   - `${CLAUDE_PLUGIN_ROOT}/templates/rules/razor.md` → `<workspace>\.claude\rules\razor.md`
+Path-scoped rules under `<workspace>\.claude\rules\` are NOT scaffolded by this skill. Engineers typically have team- or repo-specific coding rules they want to manage themselves; this plugin doesn't ship opinionated defaults. If you want rules, drop your own files into `.claude\rules\` (see https://code.claude.com/docs/en/memory#path-specific-rules for format).
 
 ## Phase 4 — Summary
 
@@ -137,11 +134,8 @@ Created:
   Complete\
   Archive\
   PlanningWorkspace\
-  .claude\rules\
   CLAUDE.md
   PlanningWorkspace\CLAUDE.md
-  .claude\rules\csharp.md
-  .claude\rules\razor.md
 
 Next steps:
   /jira-import <KEY>       Import a Jira ticket to start ticketed work
