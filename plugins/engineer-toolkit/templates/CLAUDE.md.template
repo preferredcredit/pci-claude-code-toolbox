@@ -45,6 +45,15 @@ Prefer **HTML** for transient, scannable output. The Launch preview panel auto-r
 
 **Default styling:** dark theme, card-based sections, color-coded by action type/severity, monospace badges for keys/IDs, clickable links for anything actionable (Jira issue, PR, branch, file path). No emojis unless explicitly requested. Single-file (inline CSS, no external assets) so it renders standalone.
 
+**Open-in-editor links:** any local file path shown in HTML should be a clickable link that opens the file in the user's editor:
+
+- **VS Code (default):** `<a href="vscode://file/<absolute-path>">file.md</a>`
+- **VS Code with line number:** `<a href="vscode://file/<absolute-path>:<line>">file.md:42</a>`
+- **Cursor:** swap `vscode://` for `cursor://`
+- **VS Code Insiders:** swap for `vscode-insiders://`
+
+Windows paths use forward slashes after the scheme: `vscode://file/C:/ClaudeWorkspace/Active/CO-322/CO-322.md`. URL-encode spaces (`%20`). First click in any new browser context shows a permission prompt; subsequent clicks open silently. Works in the Launch preview panel.
+
 **Don't** write HTML for: chat responses to simple questions, in-conversation reasoning, intermediate tool-call narration, or content that belongs in a committed `.md` file (spec / plan / issue Discussion).
 
 ## Jira Statuses by Project

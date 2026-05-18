@@ -176,6 +176,15 @@ Locked to chat: <L> items have Mode: direct (<comma-separated keys>)
 
 Write a single-file dark-themed HTML report to `<workspace>\dashboard.html` containing the same per-item data, rendered as a card/table action board. Color-code rows by `Status:`, show `Jira Status:` and `Branch` as clickable links where applicable, mark `Mode: direct` items with a distinct badge. The Launch preview panel auto-renders the file. The chat output remains the markdown table above — the HTML is the readable surface, the chat block is the at-a-glance.
 
+**Make file paths clickable as VS Code links** (see CLAUDE.md `## Output Format` > "Open-in-editor links"). For each Active item, render these as `vscode://file/<absolute-path>` anchors:
+
+- The Key column (or the row title) → links to `<workspace>\Active\<DIR>\<DIR>.md`
+- If `<workspace>\Active\<DIR>\spec.md` exists → small "spec" badge linking to it
+- If `<workspace>\Active\<DIR>\plan.md` exists → small "plan" badge linking to it
+- If `<workspace>\Active\<DIR>\smoke.md` exists → small "smoke" badge linking to it
+
+Use forward slashes in the path even on Windows (`vscode://file/C:/ClaudeWorkspace/Active/CO-322/CO-322.md`). The Jira and PR columns stay as `https://` links to the external systems.
+
 Skip the HTML write if `<N>` is 0 — leave any prior `dashboard.html` in place.
 
 **Targeted:**
