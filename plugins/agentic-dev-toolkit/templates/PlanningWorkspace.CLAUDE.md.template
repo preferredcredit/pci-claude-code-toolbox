@@ -1,0 +1,452 @@
+# PlanningWorkspace - Repository Reference
+
+## Quick Reference: Which Repo?
+
+| Task | Repo | Start Here |
+|------|------|------------|
+| Add API endpoint | NextGenOrig | Find existing endpoint in same feature area |
+| Add database query | NextGenOrig | Find existing DataProvider in same feature |
+| Add UI page/component | Gateway.Web / CustomerEngagement.Web / ClientPortal.Sidecar.Web | Find similar page in Features folder |
+| Add HTTP client method | NextGenOrig (defines), Blazor apps (consume) | Find existing method in ApiHttpClient |
+
+---
+
+## Repositories
+
+| Repo | Clone URL | Purpose |
+|------|-----------|---------|
+| NextGenOrig | `https://tfs.preferredcredit.net/DefaultCollection/EngineeringHub/_git/NextGenOrig` | API backend (.NET 9, FastEndpoints, EF Core) |
+| Gateway.Web | `https://tfs.preferredcredit.net/DefaultCollection/Gateway/_git/Gateway.Web` | Internal portal (.NET 9, Blazor, MudBlazor) |
+| CustomerEngagement.Web | `https://tfs.preferredcredit.net/DefaultCollection/Customer%20Engagement/_git/CustomerEngagement.Web` | Customer-facing app (.NET 9, Blazor, MudBlazor) |
+| ClientPortal.Sidecar.Web | `https://tfs.preferredcredit.net/DefaultCollection/PCIClientPortal/_git/ClientPortal.Sidecar.Web` | Client portal (.NET 9, Blazor, MudBlazor) |
+| Origination | `https://tfs.preferredcredit.net/DefaultCollection/Origination/_git/Origination` | Origination backend (NServiceBus sagas, endpoints, message handlers) |
+
+## NuGet Dependencies
+
+Packages come from remote feeds only. No local package workflow.
+
+If work requires NuGet package changes:
+1. Document in Discussion
+2. Wait for package publish
+3. Update references and continue
+
+**UI Stubbing:** If UI depends on pending package changes, create stubs marked with `// TODO: Remove stub when [PackageName] published`. DON'T STUB if its not necessary.
+---
+
+## Coding Patterns for AI Agents
+
+### Universal Conventions (All Repos)
+
+**File Headers:**
+```csharp
+// <copyright file="FileName.cs" company="Preferred Credit Inc.">
+// Copyright (c) Preferred Credit Inc.. All rights reserved.
+// </copyright>
+
+namespace {Namespace};
+```
+
+**Class Modifiers:**
+- Use `sealed` by default for all classes
+- Use `sealed record` for immutable data types
+- Use `sealed partial` for Blazor components
+
+**Async/Await:**
+- Suffix async methods with `Async`
+- Use `.ConfigureAwait(false)` in non-UI code (services, data providers, HTTP clients)
+- Pass `CancellationToken` as last parameter - never use `= default`
+
+**Null Handling:**
+- Use `required` keyword for mandatory properties
+- Use nullable reference types (`?`) explicitly
+- Use `ArgumentNullException.ThrowIfNull()` for parameter validation
+
+---
+
+### NextGenOrig Patterns (API Backend)
+
+**FastEndpoints Structure:**
+```csharp
+public sealed class GetSomethingApiEndpoint(IMyService service, IMapper mapper)
+    : EndpointWithoutRequest<GetSomethingResponseDc>
+{
+    public override void Configure()
+    {
+        this.Get($"{AcConstants.FeatureRoutePrefix}/GetSomething");
+        this.Roles(RoleTypes.PORT_FeatureName);
+    }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        string clientNumber = this.HttpContext.User.Identity.GetSelectedDistributorNumber();
+        var data = await service.GetDataAsync(clientNumber, ct).ConfigureAwait(false);
+        this.Response = mapper.MapToResponse(data);
+    }
+}
+```
+
+**Data Contracts (Dc suffix):**
+```csharp
+public sealed class GetSomethingResponseDc
+{
+    public required IReadOnlyList<ItemDc> Items { get; init; }
+
+    public sealed class ItemDc
+    {
+        public required Guid Id { get; init; }
+        public required string Name { get; init; }
+    }
+}
+```
+
+**HTTP Client Methods:**
+```csharp
+public async Task<TResponse> GetSomethingAsync(Guid id, CancellationToken cancellationToken) =>
+    await this.GetAsync<TResponse>($"/api/Feature/GetSomething/{id}", cancellationToken);
+```
+
+**Discriminated Union Results (use for operations with multiple outcomes):**
+```csharp
+// Define in service layer when operation can succeed, fail, or have domain-specific outcomes
+public abstract record MyResult
+{
+    public static SuccessResult Success(Data data) => new(data);
+    public static NotFoundResult NotFound() => new();
+    public static ValidationFailedResult ValidationFailed(string message) => new(message);
+}
+public sealed record SuccessResult(Data Data) : MyResult;
+public sealed record NotFoundResult : MyResult;
+public sealed record ValidationFailedResult(string Message) : MyResult;
+
+// Handle in endpoint:
+var result = await service.ProcessAsync(request, ct);
+switch (result)
+{
+    case SuccessResult success:
+        this.Response = mapper.Map(success.Data);
+        break;
+    case NotFoundResult:
+        await this.SendNotFoundAsync(ct);
+        break;
+    case ValidationFailedResult validation:
+        this.AddError(validation.Message);
+        await this.SendErrorsAsync(cancellation: ct);
+        break;
+}
+```
+
+**Data Provider Pattern:**
+```csharp
+public sealed class MyDataProvider(NextGenDbContext dbContext) : IMyDataProvider
+{
+    public async Task<IReadOnlyList<Entity>> GetEntitiesAsync(string key, CancellationToken ct) =>
+        await dbContext.Entities
+            .AsNoTracking()
+            .Where(x => x.Key == key)
+            .ToListAsync(ct).ConfigureAwait(false);
+}
+```
+
+**Preferred Query Pattern (enumerate first, transform second):**
+```csharp
+// For queries with nullable navigation properties, enumerate first then transform:
+var rawData = await query
+    .SelectMany(...)
+    .OrderByDescending(...)
+    .ToListAsync(ct).ConfigureAwait(false);
+
+List<ResponseDc> result = rawData
+    .Select(x =>
+    {
+        var childEntity = x.Parent?.Child; // Local variable simplifies null handling
+        return new ResponseDc
+        {
+            Value = childEntity?.Property,
+        };
+    })
+    .ToList();
+```
+
+---
+
+### Blazor Component Patterns (Gateway.Web, CustomerEngagement.Web, ClientPortal.Sidecar.Web)
+
+**Primary Constructor with DI:**
+```csharp
+public sealed partial class MyComponent(
+    ISnackbar snackbar,
+    MyApiHttpClient apiClient) : DisposableComponentBase
+{
+    // Fields initialized from constructor parameters
+    private readonly MyModel model = new();
+}
+```
+
+**DisposableComponentBase Usage:**
+```csharp
+// In code-behind (.razor.cs):
+public sealed partial class MyComponent(...) : DisposableComponentBase
+{
+    private async Task LoadDataAsync()
+    {
+        var result = await apiClient.GetDataAsync(this.ComponentCancellationToken);
+    }
+}
+
+// In markup (.razor):
+@inherits DisposableComponentBase
+```
+
+**Dialog Pattern:**
+```csharp
+public sealed partial class MyDialog(
+    ISnackbar snackbar,
+    MyApiHttpClient apiClient) : DisposableComponentBase
+{
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid EntityId { get; set; }
+
+    private MyModel model = new();
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Dialog options: DefaultForm (standard), DefaultConfirmation (small), DefaultWizard (large)
+        await this.MudDialog.SetOptionsAsync(GatewayDialogOptions.DefaultForm);
+        await this.LoadDataAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        this.isSaving = true;
+        try
+        {
+            await apiClient.SaveAsync(this.model, this.ComponentCancellationToken);
+            snackbar.Add("Saved successfully", Severity.Success);
+            this.MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (HttpRequestException)
+        {
+            snackbar.Add("Failed to save", Severity.Error);
+        }
+        finally
+        {
+            this.isSaving = false;
+        }
+    }
+
+    private void Cancel() => this.MudDialog.Close(DialogResult.Cancel());
+}
+```
+
+**Page Step State Machine:**
+```csharp
+internal enum PageSteps
+{
+    LoadingData,      // Show skeleton
+    EnterInfo,        // Form step
+    Review,           // Review step
+    Complete,         // Success
+    FailedToLoadStep  // Error
+}
+
+private PageSteps pageStep;
+
+private async Task OnContinue()
+{
+    switch (this.pageStep)
+    {
+        case PageSteps.EnterInfo:
+            this.SetPageStep(PageSteps.LoadingData);
+            await this.SaveDataAsync();
+            this.SetPageStep(PageSteps.Review);
+            break;
+        // ...
+    }
+}
+```
+
+**Event Bus Pattern:**
+```csharp
+// Handler signature - must call StateHasChanged for UI updates
+private async Task OnMyEventAsync(object? sender, MyEventArgs e)
+{
+    await this.LoadDataAsync();
+    await this.InvokeAsync(this.StateHasChanged);
+}
+
+// Subscribe in OnInitialized:
+protected override void OnInitialized()
+{
+    eventBus.MyEvent += this.OnMyEventAsync;
+}
+
+// Unsubscribe in Dispose (DisposableComponentBase handles this via override):
+protected override void Dispose(bool disposing)
+{
+    eventBus.MyEvent -= this.OnMyEventAsync;
+    base.Dispose(disposing);
+}
+
+// Raise events from any component:
+await eventBus.RaiseMyEventAsync(new MyEventArgs { EntityId = id });
+```
+
+**Parallel API Loading:**
+```csharp
+// Start all requests simultaneously
+var taskA = apiClient.GetAAsync(this.ComponentCancellationToken);
+var taskB = apiClient.GetBAsync(this.ComponentCancellationToken);
+await Task.WhenAll(taskA, taskB);
+
+// Access results - .Result is safe after WhenAll completes
+this.dataA = taskA.Result;
+this.dataB = taskB.Result;
+```
+
+**Error Handling in Components:**
+```csharp
+private async Task LoadDataAsync()
+{
+    try
+    {
+        this.items = await apiClient.GetItemsAsync(this.ComponentCancellationToken);
+    }
+    catch (HttpRequestException)
+    {
+        snackbar.Add("Failed to load data", Severity.Error);
+        this.pageStep = PageSteps.FailedToLoadStep;
+    }
+    catch (OperationCanceledException)
+    {
+        // Component disposed - do nothing
+    }
+}
+```
+
+---
+
+### Testing Patterns (All Repos)
+
+**Test Frameworks:** xUnit, NSubstitute, AutoFixture
+
+**Global Usings (Tests):**
+```csharp
+global using AutoFixture;
+global using NSubstitute;
+global using Xunit;
+```
+
+**AAA Pattern:**
+```csharp
+[Fact]
+public async Task MethodName_Scenario_ExpectedResult()
+{
+    // Arrange
+    var service = Substitute.For<IMyService>();
+    service.GetDataAsync(Arg.Any<CancellationToken>()).Returns(expectedData);
+    var sut = new MyClass(service);
+
+    // Act
+    var result = await sut.DoSomethingAsync(CancellationToken.None);
+
+    // Assert
+    Assert.NotNull(result);
+    Assert.Equal(expected, result.Value);
+}
+```
+
+**Mapper Test Pattern:**
+```csharp
+[Theory]
+[InlineData(DomainEnum.Value1, DcEnum.Value1)]
+[InlineData(DomainEnum.Value2, DcEnum.Value2)]
+public void MapEnum_AllValues_MapCorrectly(DomainEnum input, DcEnum expected)
+{
+    var result = mapper.Map(input);
+    Assert.Equal(expected, result);
+}
+```
+
+---
+
+### Validation Patterns
+
+**Model Validation:**
+```csharp
+public sealed class MyModel
+{
+    [Required(ErrorMessageResourceName = nameof(Resources.ValidationRequired),
+              ErrorMessageResourceType = typeof(Resources))]
+    [StringLength(100)]
+    [Display(Name = nameof(Resources.FieldLabel), ResourceType = typeof(Resources))]
+    public string Name { get; set; } = string.Empty;
+}
+```
+
+**Switch Expression Exhaustiveness:**
+```csharp
+private static string MapStatus(Status status) => status switch
+{
+    Status.Pending => "Pending",
+    Status.Active => "Active",
+    Status.Complete => "Complete",
+    _ => throw new ArgumentOutOfRangeException(nameof(status), $"Status not handled: {status}"),
+};
+```
+
+---
+
+### Naming Conventions Quick Reference
+
+| Type | Convention | Example |
+|------|------------|---------|
+| API Endpoint | `{Action}ApiEndpoint` | `GetAccountsApiEndpoint` |
+| Data Contract | `{Name}Dc` | `GetAccountsResponseDc` |
+| HTTP Client | `{Feature}ApiHttpClient` | `NextGenGatewayApiHttpClient` |
+| Service | `{Feature}Service` | `PrequalService` |
+| Data Provider | `{Feature}DataProvider` | `AccountDataProvider` |
+| Mapper | `{Feature}Mapper` | `AccountDataMapper` |
+| Blazor Page | `{Feature}Index` | `AccountIndex` |
+| Dialog | `{Action}Dialog` | `InitializeNewCreditReportDialog` |
+| Model | `{Feature}Model` | `EnterPersonalInfoModel` |
+| Route Constant | `{Feature}RoutePrefix` | `ApplicationInviteRoutePrefix` |
+
+---
+
+### Key File Locations
+
+**NextGenOrig (when adding API features):**
+| Adding | Location |
+|--------|----------|
+| Endpoint | `NextGen.{Feature}.Server/ApiEndpoints/{Feature}/` |
+| Service | `NextGen.{Feature}.Server/Services/{Feature}/` |
+| Data Provider | `NextGen.{Feature}.Server/DataProviders/{Feature}/` |
+| Data Contract | `NextGen.{Feature}.Client/DataContracts/{Feature}/` |
+| HTTP Client method | `NextGen.{Feature}.Client/Infrastructure/{Feature}ApiHttpClient.cs` |
+
+**Blazor Apps (when adding UI features):**
+| Adding | Location |
+|--------|----------|
+| New page | `{App}.Client/Features/{FeatureName}/{FeatureName}Index.razor` |
+| Component | `{App}.Client/Features/{FeatureName}/Components/` |
+| Model | `{App}.Client/Features/{FeatureName}/Models/` |
+| Shared component | `{App}.Client/BaseMudBlazorWasm/Components/` |
+| HTTP client | `{App}.Client/BaseMudBlazorWasm/Infrastructure/`|
+
+---
+
+### Anti-Patterns to Avoid
+
+| Bad | Good | Why |
+|-----|------|-----|
+| `CancellationToken ct = default` | `CancellationToken ct` (no default) | Forces callers to pass token explicitly |
+| `[Inject] IService service` | `class MyComponent(IService service)` | Primary constructor is cleaner |
+| `try { } catch (Exception)` | `catch (HttpRequestException)` | Catch specific exceptions only |
+| `Task.Run(() => work)` | `await WorkAsync()` | Task.Run blocks thread pool in Blazor |
+| Missing `@inherits` in .razor | `@inherits DisposableComponentBase` | Required when code-behind has base class |
+| `StateHasChanged()` directly | `await InvokeAsync(StateHasChanged)` | Required when called from event handlers |
+| Creating new file | Edit existing file | Prefer extending existing code |
