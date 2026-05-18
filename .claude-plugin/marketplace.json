@@ -6,16 +6,12 @@
   },
   "metadata": {
     "description": "PCI's plugin marketplace for Claude Code extensions",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "plugins": [
     {
       "name": "engineer-toolkit",
       "source": "./plugins/engineer-toolkit"
-    },
-    {
-      "name": "agentic-dev-toolkit",
-      "source": "./plugins/agentic-dev-toolkit"
     }
   ]
 }

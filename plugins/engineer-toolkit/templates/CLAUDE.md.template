@@ -11,7 +11,7 @@
 | User Name | `{{USER_DISPLAY_NAME}}` |
 | Primary projects | `CRD`, `CO`, `CHANGE` |
 
-These values are read by skills in the `agentic-dev-toolkit` plugin. Workspace path and User Account ID are set by `/adt-init`. The rest are PCI-wide constants.
+These values are read by the Jira-driven dev workflow skills in the `engineer-toolkit` plugin. Workspace path and User Account ID are set by `/workspace-init`. The rest are PCI-wide constants.
 
 Discovery JQL: `project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
 

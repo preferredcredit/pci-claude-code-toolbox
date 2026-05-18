@@ -1,17 +1,17 @@
 ---
-name: adt-init
-description: Bootstrap a workspace for the agentic-dev-toolkit plugin — checks prerequisites, prompts for user-specific config, and scaffolds the workspace folder structure with templated CLAUDE.md and rules.
+name: workspace-init
+description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks prerequisites, prompts for user-specific config, and scaffolds the workspace folder structure with templated CLAUDE.md and rules.
 disable-model-invocation: true
 user-invocable: true
 ---
 
-# adt-init
+# workspace-init
 
-Set up (or refresh) a workspace for the `agentic-dev-toolkit` plugin. Interactive — runs in the current chat session.
+Set up (or refresh) a workspace for the `engineer-toolkit` plugin's Jira-driven dev workflow. Interactive — runs in the current chat session.
 
 ## Invocation
 
-`/adt-init` — no arguments.
+`/workspace-init` — no arguments.
 
 ## Phase 0 — Prerequisite check
 
@@ -21,7 +21,6 @@ Read `~/.claude/plugins/installed_plugins.json` (and any project-level `.claude/
 - `superpowers@claude-plugins-official`
 - `atlassian@claude-plugins-official`
 - `playwright@claude-plugins-official`
-- `engineer-toolkit@pci-toolbox`
 
 **Optional plugins (warn only, do not gate):**
 - `csharp-lsp@claude-plugins-official`
