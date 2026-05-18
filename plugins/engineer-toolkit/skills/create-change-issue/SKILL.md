@@ -9,7 +9,7 @@ Create a Jira ticket in the **CHANGE** (Change Management) project with the righ
 
 ## Project Configuration
 
-- **CloudId:** `19ff5866-fc24-4369-81c2-4b8de43058a3`
+- **CloudId:** the Jira CloudId from `## Configuration` in CLAUDE.md (referred to as `<CloudId>` below)
 - **Project key:** `CHANGE`
 - **Issue type:** `Change` (id `10026`)
 - **Default assignee:** the User Account ID from `## Configuration` in CLAUDE.md
@@ -98,7 +98,7 @@ For a typical SOFTDEV deploy CAB:
 
 ```json
 {
-  "cloudId": "19ff5866-fc24-4369-81c2-4b8de43058a3",
+  "cloudId": "<CloudId>",
   "projectKey": "CHANGE",
   "issueTypeName": "Change",
   "summary": "Updated Socure Matching Logic",

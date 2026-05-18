@@ -3,6 +3,7 @@ name: workspace-init
 description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks prerequisites, prompts for user-specific config, and scaffolds the workspace folder structure with templated CLAUDE.md and rules.
 disable-model-invocation: true
 user-invocable: true
+allowed-tools: Read, Write, Edit, Bash, Glob, AskUserQuestion, mcp__plugin_atlassian_atlassian__atlassianUserInfo
 ---
 
 # workspace-init
@@ -15,7 +16,12 @@ Set up (or refresh) a workspace for the `engineer-toolkit` plugin's Jira-driven 
 
 ## Phase 0 — Prerequisite check
 
-Read `~/.claude/plugins/installed_plugins.json` (and any project-level `.claude/settings.json`) to confirm each required plugin is **installed AND enabled** in the user's Claude Code environment.
+Verify each required plugin is **both installed AND enabled**. These are two separate things:
+
+- **Installed** — present in `~/.claude/plugins/installed_plugins.json` under the `plugins` key.
+- **Enabled** — set to `true` in `enabledPlugins` in `~/.claude/settings.json` (user-level) or in `<cwd>/.claude/settings.json` (project-level). Either one is sufficient.
+
+A plugin can be installed but disabled (the user installed it once, then disabled it via `/plugin`). MCP calls to a disabled plugin fail at runtime with a confusing error, so we gate up front.
 
 **Required plugins:**
 - `superpowers@claude-plugins-official`
@@ -26,12 +32,27 @@ Read `~/.claude/plugins/installed_plugins.json` (and any project-level `.claude/
 - `csharp-lsp@claude-plugins-official`
 - `claude-md-management@claude-plugins-official`
 
-For each missing or disabled required plugin, print a remediation block:
+### Check algorithm
+
+For each required plugin `<name>@<marketplace>`:
+
+1. Read `~/.claude/plugins/installed_plugins.json`. If `plugins["<name>@<marketplace>"]` is missing or its array is empty → status is **not-installed**.
+2. Else read `~/.claude/settings.json` and (if it exists) `<cwd>/.claude/settings.json`. If `enabledPlugins["<name>@<marketplace>"] === true` in either → status is **enabled**. Otherwise → status is **installed-but-disabled**.
+
+Apply the same algorithm to optional plugins; warn only, do not gate.
+
+For each required plugin not in **enabled** state, print one of these remediation blocks:
 
 ```
-[!] Missing required plugin: <plugin-name>
+[!] Required plugin not installed: <plugin-name>
     Install: in Claude Code, run /plugin → Discover → install "<short-name>"
     Marketplace: <marketplace-name>
+```
+
+```
+[!] Required plugin installed but disabled: <plugin-name>
+    Enable: in Claude Code, run /plugin → enable "<short-name>"
+    Or edit ~/.claude/settings.json: set enabledPlugins["<plugin>@<marketplace>"] to true
 ```
 
 For each missing optional plugin, print a warning but continue.

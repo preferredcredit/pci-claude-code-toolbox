@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # Smoke
 
@@ -19,7 +19,10 @@ For deployed-env QA verification use `/qa <key> <env>` (env = `dev` | `qa` | `st
 
 ## Configuration
 
-- CloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
+Read from the workspace `CLAUDE.md` `## Configuration` table:
+- `Jira CloudId` (referred to as `<CloudId>` below)
+
+Hardcoded in this skill:
 - Active issues folder: `<workspace>\Active\`
 - PlanningWorkspace fallback: `<workspace>\PlanningWorkspace\`
 - Smoke profile cache: `<workspace>\.smoke\profile\<host>\`

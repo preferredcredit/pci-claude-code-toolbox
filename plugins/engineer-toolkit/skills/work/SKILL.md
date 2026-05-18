@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # Work
 
@@ -101,7 +101,7 @@ Phase 2 refreshes the **`Jira Status:`** field only. It NEVER touches the local 
 3. For each ticketed item:
    - Read the issue file at `<workspace>\Active\<DIR>\<DIR>.md`.
    - Extract the current `Jira Status:` field value, if present. If the field is missing entirely, treat the previous value as empty (the line will be inserted, not updated).
-   - Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`, `issueIdOrKey: <DIR>`, `fields: ["status"]`.
+   - Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <DIR>`, `fields: ["status"]`.
    - Compare the new Jira status name to the local `Jira Status:` field (case-insensitive after trimming).
    - **If they match:** do nothing.
    - **If they differ (or the field is missing):**
@@ -229,7 +229,7 @@ Skipped (Mode: direct): <KEY>, <KEY>, ...
 
 3. **Outbound Jira transition (ticketed items only, when dispatching a development subagent):**
    - Check the local `Jira Status:` field (refreshed in Phase 2). If already `In Development` (case-insensitive), skip the transition silently.
-   - Otherwise, call `mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue` with `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`, `issueIdOrKey: <KEY>`.
+   - Otherwise, call `mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <KEY>`.
    - Find a transition whose target name is `In Development` (case-insensitive).
    - If found, call `mcp__plugin_atlassian_atlassian__transitionJiraIssue` with the transition ID.
    - If not found, log to summary: `[<KEY>] Could not find "In Development" transition; skipped.`
@@ -317,7 +317,7 @@ Keep the section terse — this is a nudge, not a report.
 After the in-chat "What to do next" output, also check Jira for assigned work the local workflow hasn't seen:
 
 1. Call `mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql` with:
-   - `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`
+   - `cloudId: <CloudId>`
    - `jql: project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
    - `fields: ["summary", "status", "priority"]`
 2. Build a "known keys" set from directory names in `<workspace>\Active\*\`, `<workspace>\Complete\*\`, and `<workspace>\Archive\*\` (case-insensitive comparison).

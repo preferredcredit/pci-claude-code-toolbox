@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, Skill, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # Direct
 
@@ -15,7 +15,10 @@ Open a direct-mode session for a single ticketed or adhoc issue inside the curre
 
 ## Configuration
 
-- CloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
+Read from the workspace `CLAUDE.md` `## Configuration` table:
+- `Jira CloudId` (referred to as `<CloudId>` below)
+
+Hardcoded in this skill:
 - Active folder: `<workspace>\Active\`
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
 
@@ -63,8 +66,10 @@ Read `Active\<TARGET>\<TARGET>.md`. Then:
 
 ## Phase 0c: Refresh Jira (ticketed only)
 
+`<CloudId>` below is the Jira CloudId from `## Configuration` in CLAUDE.md.
+
 For ticketed items:
-- Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`, `issueIdOrKey: <TARGET>`, `fields: ["status"]`.
+- Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <TARGET>`, `fields: ["status"]`.
 - Compare the returned status name (case-insensitive after trimming) to the local `Jira Status:` line. If they match, do nothing.
 - If they differ (or the local line is missing):
   - Update or insert the `Jira Status:` line in the file (use Jira's casing). Insert directly below the `Jira:` URL line if missing.

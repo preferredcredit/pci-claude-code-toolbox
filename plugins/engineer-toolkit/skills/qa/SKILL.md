@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__Claude_in_Chrome__navigate, mcp__Claude_in_Chrome__find, mcp__Claude_in_Chrome__form_input, mcp__Claude_in_Chrome__computer, mcp__Claude_in_Chrome__get_page_text, mcp__Claude_in_Chrome__read_page, mcp__Claude_in_Chrome__read_console_messages, mcp__Claude_in_Chrome__list_connected_browsers, mcp__Claude_in_Chrome__select_browser, mcp__Claude_in_Chrome__switch_browser
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # QA
 
@@ -17,7 +17,10 @@ This skill runs the orchestrator pipeline (phases 0–5) directly in the main co
 
 ## Configuration
 
-- CloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
+Read from the workspace `CLAUDE.md` `## Configuration` table:
+- `Jira CloudId` (referred to as `<CloudId>` below)
+
+Hardcoded in this skill:
 - QA root: `<workspace>\QA\`
 - Active issues folder: `<workspace>\Active\`
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
@@ -125,7 +128,7 @@ Resume an existing run.
    ```
 2. Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with:
    ```
-   cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3
+   cloudId: <CloudId>
    issueIdOrKey: <TARGET>
    fields: ["summary", "description", "status"]
    ```

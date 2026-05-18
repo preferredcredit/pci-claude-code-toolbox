@@ -1,27 +1,31 @@
 ---
 name: jira-import
-description: Import Jira issue by key or browse available NGU issues
+description: Import a Jira issue (CRD, CO, or CHANGE project) into a local Active\<KEY>\ folder by key, or browse open issues assigned to you. Trigger phrases include "import <KEY>", "pull <KEY>", "scaffold ticket", or running /jira-import with no arguments to pick from a list. Re-imports refresh the Description from Jira without disturbing local Status, Branch, PR, or Discussion.
 argument-hint: [issue-key]
 disable-model-invocation: true
-allowed-tools: Read, Write, Glob
+user-invocable: true
+allowed-tools: Read, Write, Glob, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # Jira Import
 
-Import Jira issues to the local workspace workflow using the Atlassian MCP plugin.
+Import Jira issues to the local workspace workflow using the Atlassian MCP plugin. Supports the active projects listed in `## Configuration` (currently `CRD`, `CO`, `CHANGE`).
 
 ## Configuration
 
-- CloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3
-- Project: NGU
-- Site: https://preferredcredit.atlassian.net
+Read from the workspace `CLAUDE.md` `## Configuration` table:
+- `Jira CloudId` (referred to as `<CloudId>` below)
+- `Jira site` (e.g. `https://preferredcredit.atlassian.net`)
+- `Primary projects` (the project keys to browse when no argument is given)
 
-## With Argument: `/jira-import NGU-###`
+## With Argument: `/jira-import <KEY>`
+
+`<KEY>` matches `^[A-Z]+-\d+$` — e.g. `CO-322`, `CRD-100`, `CHANGE-10561`. Legacy `NGU-###` keys still resolve to `CRD-###` server-side, so passing one works but the canonical project for new tickets is now `CRD`.
 
 1. Fetch issue using `mcp__plugin_atlassian_atlassian__getJiraIssue`:
-   - cloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
+   - cloudId: `<CloudId>`
    - issueIdOrKey: `$ARGUMENTS`
 
 2. Check if `<workspace>\Active\$ARGUMENTS\` exists:
@@ -33,7 +37,7 @@ Import Jira issues to the local workspace workflow using the Atlassian MCP plugi
    - Medium → Medium
    - Low, Lowest → Low
 
-4. Create/update file at `<workspace>\Active\$ARGUMENTS\$ARGUMENTS.md`:
+4. Create/update file at `<workspace>\Active\$ARGUMENTS\$ARGUMENTS.md`. Build the `Jira:` URL as `<Jira site>/browse/$ARGUMENTS` using the site from Configuration:
 
 ```markdown
 go
@@ -45,7 +49,7 @@ Priority: [mapped priority]
 Branch:
 PR:
 Blocked:
-Jira: https://preferredcredit.atlassian.net/browse/$ARGUMENTS
+Jira: <Jira site>/browse/$ARGUMENTS
 Jira Status: [verbatim Jira status name from the API response]
 
 ## Discussion
@@ -61,18 +65,18 @@ _(Newest first - format: [agent] message)_
 
 ## Without Argument: `/jira-import`
 
-1. Fetch issues using `mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql`:
-   - cloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
-   - jql: `project = NGU AND status IN ("Backlog", "Analysis", "Development") AND assignee = currentUser() ORDER BY priority DESC, key ASC`
+1. Fetch issues using `mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql`. Build the JQL `project in (...)` clause from the `Primary projects` list in Configuration (e.g. `project in (CRD, CO)` — exclude `CHANGE` from browse mode since CAB tickets aren't normally pulled into dev workflow):
+   - cloudId: `<CloudId>`
+   - jql: `project in (CRD, CO) AND statusCategory != Done AND assignee = currentUser() ORDER BY priority DESC, key ASC`
    - fields: `["summary", "status", "priority", "assignee"]`
    - maxResults: 20
 
 2. Display results as a numbered list:
    ```
-   Available NGU issues:
+   Available issues:
 
-   1. NGU-215 - Gateway - Add Hit Code to Prequalification UI [Backlog] [Medium]
-   2. NGU-216 - Implement Client Information... [Analysis] [Medium] [Assigned: You]
+   1. CO-322 - Gateway - Add Hit Code to Prequalification UI [Backlog] [Medium]
+   2. CRD-216 - Implement Client Information... [In Development] [Medium] [Assigned: You]
    ...
    ```
 
