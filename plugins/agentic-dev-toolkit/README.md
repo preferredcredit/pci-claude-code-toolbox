@@ -23,7 +23,6 @@ A Jira-driven local dev workflow plugin for Claude Code. Triage, plan, execute, 
 
 ## Agents
 
-- **business-analyst** — Turns vague stakeholder asks into well-formed Jira issues. Invoked during planning phases.
 - **qa-runner** — Headless Playwright driver for fully-automated regression / smoke passes (future use).
 
 ## Prerequisites
