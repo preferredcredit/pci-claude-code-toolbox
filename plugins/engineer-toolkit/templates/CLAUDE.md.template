@@ -96,44 +96,13 @@ Other stage IDs (Analysis, Development, Dev Complete, QA, QA Complete, Deployed)
 
 ## Creating Issues
 
-When the user describes a new issue conversationally:
-
-1. **Shape it** - Draft a concise summary and markdown description from their input
-2. **Confirm** - Show the summary, description, type, and priority before creating
-3. **Create** - Use `createJiraIssue` with these defaults:
-   - cloudId: the Jira CloudId from `## Configuration` above
-   - projectKey: the default Story project (typically `CRD` or `CO`; ask the user if ambiguous)
-   - issueTypeName: `Story` (prefer Story over Task - Tasks have a different/incomplete workflow)
-   - assignee_account_id: the User Account ID from `## Configuration` (always assign to the workflow user)
-   - priority: Pass as `additional_fields: {"priority": {"name": "<value>"}}`
-   - story points (optional): Pass as `additional_fields: {"customfield_10057": <number>}` (e.g. 0.5, 1, 2, 3, 5, 8)
-**Priority values:** Critical - Immediate, Highest, High, Medium, Low, Lowest. Default to Medium unless the user specifies.
-
-**Other custom fields (optional):**
-- Technical Details: `"customfield_10059": "<text>"`
-- System Component: `"customfield_11455": [{"value": "<component name>"}]`
-
-**Description style:** Use markdown. Bullet points for lists of changes. Bold for section headers. Keep it concise.
+For new Jira tickets, use the `/create-issue` skill (CRD/CO Story tickets) or `/create-change-issue` (CHANGE/CAB tickets). Both are model-invocable — describing the work in chat usually triggers them. They handle Jira API specifics so they aren't repeated here.
 
 ## Package Versioning (Cross-Repo Changes)
 
 When modifying NextGen.Gateway.Client or NextGen.Gateway.Server:
 1. Increment version in NextGenOrig `.csproj` files
 2. After merge/publish, update Gateway.Web package references to match
-
-## Scanning Issues (go flag)
-
-This scan happens inside `/work` (Phase 5). The rules below describe the mechanic.
-
-**Quick check:** Read first 2 characters of each issue file.
-- Starts with `go` → Agent's turn, process this issue
-- Anything else → Skip, not agent's turn
-
-**Rules:**
-- Case-insensitive (`go`, `Go`, `GO` all work)
-- Agent removes `go` line when done (waiting for user)
-- User adds `go` line back when ready for agent action
-- If user adds comments after `go` line, copy them to Discussion as `[user]` entry before processing
 
 ## Folder Structure
 
@@ -276,6 +245,7 @@ The Jira-driven workflow has phases (Setup → Triage → Spec → Plan → Exec
 | Issue scaffolding from a Jira key or a free-form description | `/jira-import`, `/adhoc` |
 | Local Playwright smoke walk against your dev branch | `/smoke` |
 | End-to-end QA verification (dev/qa/staging) | `/qa` |
+| New Story-workflow ticket (CRD, CO, etc.) | `/create-issue` |
 | CAB ticket creation in the CHANGE project | `/create-change-issue` |
 | Pre-PR self-review (build, code-reviewer, architect-review) | `/author-review` |
 | Independent reviewer pass on someone else's PR | `/reviewer-check` |
@@ -318,11 +288,6 @@ Work that doesn't have a Jira ticket — investigations, debugging spikes, cross
 - No automatic Jira transition during dev work.
 - `Tier:` and `Mode:` fields work identically to ticketed items — `Tier:` set during Triage, `Mode: direct` written only by `/direct`.
 - `/direct <slug>` does NOT auto-scaffold for adhoc — the slug must already exist (created via `/adhoc`). Adhoc creation is a deliberate act, unlike ticketed where the Jira key already exists upstream.
-
-**Naming rules:**
-- Kebab-case (`some-words-here`), no project prefix, no number.
-- Unique within `Active\`, `Complete\`, and `Archive\`.
-- Must not match `^[A-Z]+-\d+$` (avoids collision with Jira keys).
 
 ## AccountMate Discovery (separate workspace)
 
