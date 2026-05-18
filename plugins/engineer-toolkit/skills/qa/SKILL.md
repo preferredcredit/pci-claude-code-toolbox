@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Run a QA verification pass for a Jira ticket or adhoc investigation. Sets up an isolated QA workspace, composes a scenario from how-tos and test data, drives automated steps via Chrome MCP, prompts the user for manual steps, captures evidence, and reports the verdict. Argument is `<key-or-hint> <env>` (env is dev, qa, or staging).
+description: Run a QA verification pass for a Jira ticket or adhoc investigation against a deployed environment (dev, qa, or staging). Composes a scenario from how-tos and test data, drives automated steps via Chrome MCP, prompts the user for manual steps, captures evidence, and reports the verdict. No local code clones — for local-branch verification use /smoke instead. Argument is `<key-or-hint> <env>`.
 argument-hint: <key-or-hint> <env>
 disable-model-invocation: true
 user-invocable: true
@@ -13,7 +13,7 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 Run a QA verification pass over a Jira ticket or adhoc investigation. Drives the multi-app data setup and verification across dev, qa, or staging environments. For local-branch verification, use `/smoke` instead. Uses a hybrid execution model: Claude drives `[automated]` steps via Chrome MCP, prompts the user for `[manual]` steps, validates `[assertion]` steps against a source of truth.
 
-This skill runs the orchestrator pipeline (phases 0–5) directly in the main conversation. Subagents are NOT dispatched for v1 — manual-step interaction requires real-time user response, which only the main conversation can provide. The `qa-runner` agent exists at `.claude\agents\qa-runner.md` for future headless use.
+This skill runs the orchestrator pipeline (phases 1–4) directly in the main conversation. Subagents are NOT dispatched for v1 — manual-step interaction requires real-time user response, which only the main conversation can provide. The `qa-runner` agent exists at `.claude\agents\qa-runner.md` for future headless use.
 
 ## Configuration
 
@@ -25,7 +25,7 @@ Hardcoded in this skill:
 - Active issues folder: `<workspace>\Active\`
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
 - Envs accepted: `dev`, `qa`, `staging`
-- Per-app URLs (dev / qa / staging): read from each repo's `CLAUDE.md` `## Environments` section. See the workspace doctrine > "Local Smoke Testing" for the schema. `QA\Environments.md` is a fallback only.
+- Per-app URLs (dev / qa / staging): read from `<workspace>\PlanningWorkspace\<repo>\CLAUDE.md` `## Environments` section. `QA\Environments.md` is the workspace-level fallback when a repo's CLAUDE.md doesn't declare URLs for the target env.
 
 ## Invocation
 
@@ -45,7 +45,7 @@ and stop.
 
 ## Argument Resolution
 
-Resolve `<key-or-hint>` to a single `<TARGET>` BEFORE running Phase 0. Resolution order (first match wins):
+Resolve `<key-or-hint>` to a single `<TARGET>` BEFORE running Phase 1. Resolution order (first match wins):
 
 1. **Exact directory match** in `QA\Active\<arg>\` (case-insensitive).
 2. **Upper-cased Jira-key match against `QA\Active\`**: if `<arg>` matches `^[a-zA-Z]+-\d+$`, upper-case it and try as an exact directory match.
@@ -57,37 +57,22 @@ Outcomes:
 
 - **Zero matches** — print `No item matches '<arg>'.` and stop.
 - **Multiple matches** — print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
-- **One match** — store the resolved name as `<TARGET>` and proceed to Phase 0.
+- **One match** — store the resolved name as `<TARGET>` and proceed to Phase 1.
 
 ## Phases
 
 Run these phases in order. Do NOT skip ahead.
 
-### Phase 0: VPN check
+### Phase 1: VPN check
 
 Call `mcp__plugin_atlassian_atlassian__atlassianUserInfo` with no parameters.
 
-- On success: proceed silently to Phase 1.
+- On success: proceed silently to Phase 2.
 - On failure (network error, auth error, timeout, any non-200 response): print exactly:
   ```
   VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /qa.
   ```
   and stop. Do NOT proceed.
-
-### Phase 1: Refresh ReferenceRepos
-
-For each subdirectory in `<workspace>\QA\ReferenceRepos\`, fetch from origin and reset to main.
-
-Run this single bash command:
-
-```bash
-cd <workspace>/QA/ReferenceRepos && for dir in */; do
-  echo "=== $dir ==="
-  (cd "$dir" && git fetch origin 2>&1 && git reset --hard origin/main 2>&1) || echo "FAILED: $dir"
-done
-```
-
-Track failed repos. Non-fatal — they will be listed in the Phase 5 summary.
 
 ### Phase 2: Resolve target and set up run folder
 
@@ -103,7 +88,7 @@ Resume an existing run.
    - Look at the `## Execution Log` section to find the highest step number already logged.
    - The next step to execute is the step after it in the `## Plan` section.
    - Print: `Resuming <TARGET> from step <N>: <step description>.`
-   - Continue to Phase 3 (if `env=local`) or Phase 4.
+   - Continue to Phase 3.
 4. **If `status: passed`, `status: failed`, or `status: blocked`:**
    - Print the contents of the `## Verdict` section.
    - Ask user (this is a literal prompt — wait for response):
@@ -114,7 +99,7 @@ Resume an existing run.
        C — close (no action, /qa exits)
      ```
    - On `R`: rename existing `run.md` to `run-<YYYYMMDDHHMMSS>.md`, then proceed as if Case B/C (depending on target type).
-   - On `F`: same as `R`, but during Phase 4 Step 3 prompt the user for new scenario context.
+   - On `F`: same as `R`, but during Phase 3 Step 3 prompt the user for new scenario context.
    - On `C`: print `Closed.` and stop.
 
 #### Case B: Target is a Jira key without a QA run
@@ -153,7 +138,7 @@ Resume an existing run.
 
    ## Plan
 
-   _(To be composed in Phase 4.)_
+   _(To be composed in Phase 3.)_
 
    ## Execution Log
 
@@ -191,7 +176,7 @@ Resume an existing run.
 
    ## Plan
 
-   _(To be composed in Phase 4.)_
+   _(To be composed in Phase 3.)_
 
    ## Execution Log
 
@@ -202,36 +187,7 @@ Resume an existing run.
    _(Pending.)_
    ```
 
-### Phase 3: Set up AgentWorkspace (optional)
-
-Default: skip — deployed-env QA does not require a local clone. Only execute this phase if the scenario explicitly requires reading source (e.g., to inspect a config file). The /qa user can request a clone with the phrase "I need the clone for this run" before plan composition.
-
-For `env=local`:
-
-1. Determine repos to clone:
-   - If `<workspace>\Active\<TARGET>\AgentWorkspace\` exists, list its subdirectories — these are the repos to clone.
-   - Otherwise (adhoc, or dev clone gone), prompt user:
-     ```
-     Local env: which repos does this QA run need? Comma-separated names from:
-       NextGenOrig, Gateway.Web, CustomerEngagement.Web, ClientPortal.Sidecar.Web, Origination
-     ```
-     Parse the comma-separated response.
-2. For each repo `<RepoName>`:
-   ```bash
-   git clone --depth 1 "<workspace>/QA/ReferenceRepos/<RepoName>" \
-     "<workspace>/QA/Active/<TARGET>/AgentWorkspace/<RepoName>"
-   cd "<workspace>/QA/Active/<TARGET>/AgentWorkspace/<RepoName>"
-   git fetch origin fb/<TARGET> 2>&1
-   git checkout fb/<TARGET> 2>&1
-   ```
-   If `git fetch origin fb/<TARGET>` fails (branch doesn't exist), print warning:
-   ```
-   Branch fb/<TARGET> not found in <RepoName>. Staying on main for this repo. Verdict will note this.
-   ```
-   and continue.
-3. Print a one-line summary of which repos were cloned and which branches are checked out.
-
-### Phase 4: Execute QA (in-conversation execution loop)
+### Phase 3: Execute QA (in-conversation execution loop)
 
 This phase runs in the main conversation. Claude IS the QA runner.
 
@@ -240,7 +196,7 @@ This phase runs in the main conversation. Claude IS the QA runner.
 Read `QA\Active\<TARGET>\run.md`. Note:
 - The `env` from frontmatter.
 - The contents of `## Scope`.
-- Whether `## Plan` already has content (resume case) or is `_(To be composed in Phase 4.)_` (fresh case).
+- Whether `## Plan` already has content (resume case) or is `_(To be composed in Phase 3.)_` (fresh case).
 - The highest step number in `## Execution Log` (for resume).
 
 #### Step 2: Author Scope (adhoc, fresh runs only)
@@ -301,7 +257,7 @@ Wait for response.
 
   **ABORTED before execution.** User declined to run the composed plan.
   ```
-  Skip to Phase 5.
+  Skip to Phase 4.
 
 #### Step 5: Execute step-by-step
 
@@ -312,7 +268,8 @@ For each step `N` in the plan, in order (skipping any already in the Execution L
 If the step is tagged `[automated]` (or references a how-to whose step is `[automated]`):
 
 1. Resolve URLs and template values:
-   - Read `QA\Environments.md`, find the section for the current `env`, look up the app name referenced by the step.
+   - For each app referenced by the step, look up `urls.<env>` in `<workspace>\PlanningWorkspace\<repo>\CLAUDE.md` `## Environments` section.
+   - If the per-repo CLAUDE.md doesn't declare a URL for `<env>`, fall back to `QA\Environments.md`'s entry for that app.
    - For template substitution (`{{var}}`), look up the value in either:
      - Test data referenced in the plan (read from `QA\TestData\<file>.md`).
      - Earlier step outputs in the Execution Log.
@@ -380,7 +337,7 @@ If the step is tagged `[assertion]`:
 
 #### Step 6: Failure handling
 
-Four failure modes:
+Three failure modes:
 
 **Hard abort** — triggered by:
 - App crashed, blocking error, or unrecoverable data state observed during an automated step.
@@ -396,7 +353,7 @@ Actions:
 
    See Execution Log for details.
    ```
-3. Skip to Phase 5.
+3. Skip to Phase 4.
 
 **Step-level failure** — assertion mismatch or user replied `fail: <reason>` at a manual prompt.
 
@@ -412,7 +369,7 @@ Actions:
    ```
 2. On `C`: log the user's decision in Execution Log, continue to next step.
 3. On `A`: same as Hard abort.
-4. On `B`: set `status: blocked`, write Verdict noting the block reason, skip to Phase 5.
+4. On `B`: set `status: blocked`, write Verdict noting the block reason, skip to Phase 4.
 
 **Tooling failure** — Chrome MCP timeout, selector not found, element not interactable; the application itself is healthy.
 
@@ -423,13 +380,6 @@ Actions:
    - <HH:MM:SS> — [tooling-fallback] Chrome MCP failed: <error>. Degrading to manual.
    ```
 3. Treat the step as `[manual]` from this point — print the manual prompt and wait for user response. Continue.
-
-**Setup failure** — encountered during Phase 3 (e.g., `git fetch` for a branch that doesn't exist) or detected before Step 5 starts (e.g., user reports local app not running).
-
-Actions:
-1. Halt before any plan steps execute.
-2. Print a clear description of the setup issue.
-3. Ask user to resolve and re-run `/qa <TARGET> <env>`, or abort.
 
 #### Step 7: Final verdict (full pass)
 
@@ -470,7 +420,7 @@ For `status: passed` runs:
    - **Y**: write the how-to file using the template below. Append a line to the Execution Log: `[promoted] Steps <N>-<M> → QA\HowTos\<proposed-name>.md`.
    - **R**: ask `What name? (kebab-case, no path or .md extension)`, validate (kebab-case format, no collision); on valid input, write file and log `[promoted]` entry. On invalid input, ask again or fall back to `N` after two tries.
    - **N**: skip silently. Move to next candidate.
-5. After all candidates handled (or if no candidates found): continue to Phase 5.
+5. After all candidates handled (or if no candidates found): continue to Phase 4.
 
 If the user replies with anything other than `Y | R | N` at the prompt, re-ask once; on second invalid response, default to `N` for that candidate.
 
@@ -497,7 +447,7 @@ outputs: [<list of output names captured in the sequence>]
 
 Library promotion applies only to how-tos in v1. Test data templates and named scenarios are not auto-promoted; the user can request those explicitly after the run.
 
-### Phase 5: Report and cross-write
+### Phase 4: Report and cross-write
 
 #### Print summary
 
@@ -510,11 +460,6 @@ QA Run <TARGET> on <env>:
   Failures: <comma-separated step numbers, or "none">
   Tooling fallbacks: <count of [tooling-fallback] entries in Execution Log, or "none">
   Run folder: <workspace>\QA\Active\<TARGET>\
-```
-
-If any ReferenceRepos refresh failed in Phase 1, append:
-```
-  ReferenceRepos refresh failures: <comma-separated list>
 ```
 
 If the Verdict is not PASSED, append:
@@ -542,8 +487,8 @@ Adhoc runs (target doesn't match Jira key regex): skip cross-write.
 
 ## Notes
 
-- All Atlassian MCP failures inside Phase 2 are non-fatal except `getJiraIssue` in Case B (no Jira lookup = no Scope pre-fill). If that fails, fall through to Case C (treat as adhoc) and the user will author Scope at Phase 4 Step 2.
-- Chrome MCP browser connection is checked lazily at the first `[automated]` step, not at Phase 0. This lets you start runs without a browser connected when the first steps are manual.
-- `[tooling-fallback]` entries are surfaced in the Phase 5 summary so a "PASSED" verdict that relied heavily on manual fallback is visible at a glance.
+- All Atlassian MCP failures inside Phase 2 are non-fatal except `getJiraIssue` in Case B (no Jira lookup = no Scope pre-fill). If that fails, fall through to Case C (treat as adhoc) and the user will author Scope at Phase 3 Step 2.
+- Chrome MCP browser connection is checked lazily at the first `[automated]` step, not at Phase 1. This lets you start runs without a browser connected when the first steps are manual.
+- `[tooling-fallback]` entries are surfaced in the Phase 4 summary so a "PASSED" verdict that relied heavily on manual fallback is visible at a glance.
 - The user can interrupt at any manual prompt with `abort: <reason>` to trigger a hard abort.
 - Run.md is updated incrementally during execution — if the conversation is interrupted, re-running `/qa <TARGET> <env>` enters Case A (resume) and picks up at the next un-executed step.
