@@ -5,6 +5,7 @@ PCI's plugin marketplace to distribute Claude Code extensions across teams.
 ## Available Plugins
 
 - **[Engineer Toolkit](plugins/engineer-toolkit/README.md)** - Code review and architecture analysis
+- **[Agentic Dev Toolkit](plugins/agentic-dev-toolkit/README.md)** — Jira-driven local dev workflow
 
 ## Installation
 
