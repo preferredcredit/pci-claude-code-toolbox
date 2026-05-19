@@ -17,7 +17,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 
 | Command | What it does |
 |---|---|
-| `/workspace-init` | Bootstrap or refresh the workspace (folders + CLAUDE.md). Checks plugin prereqs and CLI tools (git, gh, dotnet). Re-run to refresh templates; existing local edits are detected and confirmed before overwrite. |
+| `/workspace-init` | Bootstrap or refresh the workspace (folders + CLAUDE.md). Checks plugin prereqs and CLI tools (git, dotnet). Re-run to refresh templates; existing local edits are detected and confirmed before overwrite. |
 | `/work` | Main orchestrator pass — VPN check, sync Jira Status, sweep completed items, dashboard, dispatch ready items. Accepts optional `<key-or-hint>` to scope to one item. |
 | `/direct <KEY>` | Open a direct/interactive session in the current chat for a single ticket. Locks the issue from `/work`. |
 | `/adhoc <slug> "<title>"` | Create a new unticketed work item using a kebab-case slug. |

@@ -222,6 +222,16 @@ git log HEAD..origin/main --oneline
 git merge origin/main  # if updates exist
 ```
 
+## No GitHub CLI
+
+PCI hosts code on Azure DevOps on-prem. The GitHub CLI (`gh`) does not work against ADO and is **not used anywhere in this workflow**:
+
+- **Opening PRs** is a manual step. After Phase 6 wrap pushes the branch, the user opens the PR in the Azure DevOps web UI. No skill calls `gh pr create`.
+- **Fetching PR data** (diffs, descriptions, review comments) for `/author-review`, `/reviewer-check`, `/rereview`: ask the user to paste the diff, or check out the branch and run `git diff <target>...HEAD`. Do not suggest `gh pr diff`, `gh pr view`, or `gh api`.
+- **`/workspace-init`** does not check for `gh` in its CLI prereq phase.
+
+If a future workflow needs PR-tree introspection from a script, use the Azure DevOps REST API (or an ADO MCP if/when one is wired up) rather than reaching for `gh`.
+
 ## Local Smoke Testing
 
 The `/smoke` skill runs an autonomous local walk-through of a Jira ticket's acceptance criteria. Use it to verify your own feature branch before opening a PR. Local environment only — for deployed envs use `/qa`. See the skill body for the full pipeline.

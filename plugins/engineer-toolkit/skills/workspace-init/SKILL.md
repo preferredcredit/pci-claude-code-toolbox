@@ -1,6 +1,6 @@
 ---
 name: workspace-init
-description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks plugin prereqs, CLI binaries (git, gh, dotnet), prompts for user-specific config, scaffolds a small user-owned CLAUDE.md plus the plugin-managed workflow doctrine, and migrates pre-split workspaces.
+description: Bootstrap a workspace for the engineer-toolkit plugin's Jira-driven dev workflow — checks plugin prereqs, CLI binaries (git, dotnet), prompts for user-specific config, scaffolds a small user-owned CLAUDE.md plus the plugin-managed workflow doctrine, and migrates pre-split workspaces.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Glob, AskUserQuestion, mcp__plugin_atlassian_atlassian__atlassianUserInfo
@@ -74,8 +74,9 @@ Run the checks in parallel via Bash. Treat a non-zero exit as "not configured."
 | Tool | Why it matters | Check |
 |---|---|---|
 | `git` | All repo cloning + branch ops in `/work`, `/direct`, `/smoke` | `git --version` |
-| `gh` | `gh pr view` / `gh pr diff` in `/author-review`, `/reviewer-check`, `/rereview` for fetching PR data | `gh --version && gh auth status` |
 | `dotnet` | `dotnet build`/`dotnet test` in `/author-review` and `/smoke` | `dotnet --version` |
+
+> The GitHub CLI (`gh`) is intentionally not checked. PCI hosts code on Azure DevOps on-prem, where `gh` doesn't work — the review skills fall back to user-supplied diffs / local `git diff`. See workflow doctrine "No GitHub CLI".
 
 For each failed check, print:
 
@@ -89,8 +90,6 @@ For each failed check, print:
 Suggested install pointers:
 
 - `git` → `winget install Git.Git` (or https://git-scm.com/)
-- `gh` not installed → `winget install GitHub.cli`
-- `gh` installed but not logged in → `gh auth login`
 - `dotnet` → `winget install Microsoft.DotNet.SDK.9`
 
 Then always print one info note (regardless of outcomes above):
