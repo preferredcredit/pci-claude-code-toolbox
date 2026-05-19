@@ -245,7 +245,7 @@ Skipped (Mode: direct): <KEY>, <KEY>, ...
    - On any error, log to summary and continue — do NOT block dev work.
    - On success, optimistically update the local `Jira Status:` line to `In Development`.
 
-4. After dispatch, the subagent runs `engineer-toolkit:author-review` as the final pre-PR step and opens the PR with the author-review summary as the description.
+4. After dispatch, the subagent runs `engineer-toolkit:author-review` as its final step. Do NOT open a PR — pushing the branch is the end of the pipeline; the user opens the PR manually.
 
 Subagents launch concurrently.
 
