@@ -219,14 +219,21 @@ _(Pending.)_
 
 ### Phase 4: Dispatch driver subagent
 
-Construct the dispatch prompt with values resolved in earlier phases, then invoke the `playwright-driver` agent via the Task tool.
+The agent is a pure function: dispatch prompt in, return message out. It does not read or write smoke.md. /smoke owns the file format end-to-end — this phase composes the dispatch prompt from the plan, invokes the agent, then splices the agent's return back into smoke.md.
 
-The dispatch prompt supplies the four inputs the agent expects (`state_file`, `apps`, `playwright_launch`, `primary_url`) and the return contract. Nothing else — the agent's own definition carries the procedure.
+#### Step 1: Compose the dispatch prompt
+
+Read the `## Plan` section of `Active\<TARGET>\smoke.md` and inline the steps into the `Plan:` block of the template below. Use the apps + playwright launch values resolved in earlier phases.
 
 Prompt template:
 
 ```
-State file: <workspace>\Active\<TARGET>\smoke.md
+Plan:
+1. action: <action>
+   expect: <expect>
+2. action: ...
+   expect: ...
+...
 
 Apps (name — URL — log path):
   - <repo> — <url> — <log path>
@@ -242,16 +249,38 @@ Playwright launch configuration:
 
 Primary URL: <primary_url>
 
-Walk the plan and return: passed | failed | aborted | auth-fallback (optionally with up to 3 short findings).
+Screenshots dir: <workspace>\Active\<TARGET>\Screenshots\
+
+Starting step: <N>     (omit this line entirely if starting from step 1)
+
+Walk the plan and return: Verdict line + ## Step Results block per your return-format spec.
 ```
 
-Handle the agent's return value:
-- **`auth-fallback`** → print to the user:
-  ```
-  Auth wall detected. A headed browser is open at <primary_url>. Sign in to the app, then reply 'ok' to continue.
-  ```
-  Wait for `ok`. Re-dispatch the agent with the same prompt plus the suffix `Resume execution — auth state is now established.`
-- **`passed | failed | aborted`** → continue to Phase 5.
+#### Step 2: Invoke the agent
+
+Dispatch `playwright-driver` via the Task tool with the composed prompt.
+
+#### Step 3: Splice the return into smoke.md
+
+When the agent returns, parse the message:
+
+- **First line** — `Verdict: <token>` where `<token>` is `passed`, `failed`, `aborted at step <N>`, or `auth-fallback at step <N>`.
+- **Second line** — the human-readable verdict (`**PASSED** — ...` / `**FAILED** — ...` / etc.).
+- **Optional lines 3-5** — short findings.
+- **`## Step Results` block** — one `### Step N: ...` entry per executed step.
+
+Then:
+
+1. **If `Verdict: auth-fallback at step <N>`** → print to the user:
+   ```
+   Auth wall detected at step <N>. A headed browser is open at <primary_url>. Sign in to the app, then reply 'ok' to continue.
+   ```
+   Wait for `ok`. Append whatever `## Step Results` entries the agent returned (steps 1..N-1) to smoke.md's `## Execution Log`. Re-dispatch the agent with the same prompt plus `Starting step: <N>`. Loop back to Step 3 to parse the new return.
+2. **Otherwise** (`passed | failed | aborted`):
+   a. Append the agent's `## Step Results` entries to smoke.md's `## Execution Log`. Preserve any entries appended from prior auth-fallback rounds.
+   b. Write the human-readable verdict line (and any findings) into smoke.md's `## Verdict` section, replacing the `_(Pending.)_` placeholder.
+   c. Update smoke.md frontmatter `status:` to match the token (`passed | failed | aborted`).
+   d. Continue to Phase 5.
 
 ### Phase 5: Verdict, cleanup, cross-write
 
