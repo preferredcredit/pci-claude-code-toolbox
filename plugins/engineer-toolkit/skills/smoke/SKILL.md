@@ -1,6 +1,6 @@
 ---
 name: smoke
-description: Run an autonomous local smoke walk over a Jira ticket or adhoc investigation. Starts the local app(s), composes a walk plan from the acceptance criteria, dispatches the qa-runner subagent to drive the browser via Playwright while tailing app logs for exceptions. Local environment only — for deployed-env QA use /qa instead.
+description: Run an autonomous local smoke walk over a Jira ticket or adhoc investigation. Starts the local app(s), composes a walk plan from the acceptance criteria, dispatches the playwright-driver subagent to drive the browser while tailing app logs for exceptions. Local environment only — for deployed-env QA use /qa instead.
 argument-hint: <key-or-hint> [--vs] [--no-cross-write]
 disable-model-invocation: true
 user-invocable: true
@@ -13,7 +13,7 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 Run an autonomous local smoke walk: start the app(s), walk the acceptance criteria via Playwright, watch the app log for exceptions, write a verdict. Local environment only.
 
-The orchestrator (this skill) runs in the main conversation. The walk itself is dispatched to the `qa-runner` subagent which owns the entire Playwright run end-to-end.
+The orchestrator (this skill) runs in the main conversation. The walk itself is dispatched to the `playwright-driver` subagent which owns the entire Playwright run end-to-end.
 
 For deployed-env QA verification use `/qa <key> <env>` (env = `dev` | `qa` | `staging`). For pre-PR review use `engineer-toolkit:author-review`.
 
@@ -219,43 +219,68 @@ _(Pending.)_
 
 ### Phase 4: Dispatch driver subagent
 
-Construct the dispatch prompt with values resolved in earlier phases, then invoke the `qa-runner` agent via the Task tool.
+The agent is a pure function: dispatch prompt in, return message out. It does not read or write smoke.md. /smoke owns the file format end-to-end — this phase composes the dispatch prompt from the plan, invokes the agent, then splices the agent's return back into smoke.md.
+
+#### Step 1: Compose the dispatch prompt
+
+Read the `## Plan` section of `Active\<TARGET>\smoke.md` and inline the steps into the `Plan:` block of the template below. Use the apps + playwright launch values resolved in earlier phases.
 
 Prompt template:
 
 ```
-Smoke walk for <TARGET>.
+Plan:
+1. action: <action>
+   expect: <expect>
+2. action: ...
+   expect: ...
+...
 
-State file: <workspace>\Active\<TARGET>\smoke.md
-Apps:
-  - name: <repo>
-    url: <url>
-    log: <log path>
+Apps (name — URL — log path):
+  - <repo> — <url> — <log path>
   ...
 
 Playwright launch configuration:
-  args: [
-    "--auth-server-allowlist=localhost,*.preferredcredit.net",
-    "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
-  ]
+  args:
+    - "--auth-server-allowlist=localhost,*.preferredcredit.net"
+    - "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
   context.ignoreHTTPSErrors: true
   userDataDir: <workspace>\.smoke\profile\<primary-host>\
-  Default to headless. Switch to headed only if an auth wall is detected (see your agent docs).
+  headless: true  (relaunch headed on auth-wall detection per your procedure)
 
 Primary URL: <primary_url>
 
-Execute the plan in the ## Plan section of the state file. Follow your agent definition for per-step behavior, failure handling, free-roam, frontmatter updates, and Verdict.
+Screenshots dir: <workspace>\Active\<TARGET>\Screenshots\
 
-Return: one line — passed | failed | aborted | auth-fallback — optionally with up to 3 short findings.
+Starting step: <N>     (omit this line entirely if starting from step 1)
+
+Walk the plan and return: Verdict line + ## Step Results block per your return-format spec.
 ```
 
-Handle the agent's return value:
-- **`auth-fallback`** → print to the user:
-  ```
-  Auth wall detected. A headed browser is open at <primary_url>. Sign in to the app, then reply 'ok' to continue.
-  ```
-  Wait for `ok`. Re-dispatch the agent with the same prompt plus the suffix `Resume execution — auth state is now established.`
-- **`passed | failed | aborted`** → continue to Phase 5.
+#### Step 2: Invoke the agent
+
+Dispatch `playwright-driver` via the Task tool with the composed prompt.
+
+#### Step 3: Splice the return into smoke.md
+
+When the agent returns, parse the message:
+
+- **First line** — `Verdict: <token>` where `<token>` is `passed`, `failed`, `aborted at step <N>`, or `auth-fallback at step <N>`.
+- **Second line** — the human-readable verdict (`**PASSED** — ...` / `**FAILED** — ...` / etc.).
+- **Optional lines 3-5** — short findings.
+- **`## Step Results` block** — one `### Step N: ...` entry per executed step.
+
+Then:
+
+1. **If `Verdict: auth-fallback at step <N>`** → print to the user:
+   ```
+   Auth wall detected at step <N>. A headed browser is open at <primary_url>. Sign in to the app, then reply 'ok' to continue.
+   ```
+   Wait for `ok`. Append whatever `## Step Results` entries the agent returned (steps 1..N-1) to smoke.md's `## Execution Log`. Re-dispatch the agent with the same prompt plus `Starting step: <N>`. Loop back to Step 3 to parse the new return.
+2. **Otherwise** (`passed | failed | aborted`):
+   a. Append the agent's `## Step Results` entries to smoke.md's `## Execution Log`. Preserve any entries appended from prior auth-fallback rounds.
+   b. Write the human-readable verdict line (and any findings) into smoke.md's `## Verdict` section, replacing the `_(Pending.)_` placeholder.
+   c. Update smoke.md frontmatter `status:` to match the token (`passed | failed | aborted`).
+   d. Continue to Phase 5.
 
 ### Phase 5: Verdict, cleanup, cross-write
 
