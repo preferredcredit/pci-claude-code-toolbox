@@ -1,7 +1,7 @@
 {
   "name": "engineer-toolkit",
   "description": "PCI engineer's daily-driver toolkit: Jira-driven dev workflow (work, direct, adhoc, smoke, qa) plus code review and architecture analysis",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "author": {
     "name": "PCI"
   },

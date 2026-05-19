@@ -1,6 +1,6 @@
 ---
 name: smoke
-description: Run an autonomous local smoke walk over a Jira ticket or adhoc investigation. Starts the local app(s), composes a walk plan from the acceptance criteria, dispatches the qa-runner subagent to drive the browser via Playwright while tailing app logs for exceptions. Local environment only — for deployed-env QA use /qa instead.
+description: Run an autonomous local smoke walk over a Jira ticket or adhoc investigation. Starts the local app(s), composes a walk plan from the acceptance criteria, dispatches the playwright-driver subagent to drive the browser while tailing app logs for exceptions. Local environment only — for deployed-env QA use /qa instead.
 argument-hint: <key-or-hint> [--vs] [--no-cross-write]
 disable-model-invocation: true
 user-invocable: true
@@ -13,7 +13,7 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 Run an autonomous local smoke walk: start the app(s), walk the acceptance criteria via Playwright, watch the app log for exceptions, write a verdict. Local environment only.
 
-The orchestrator (this skill) runs in the main conversation. The walk itself is dispatched to the `qa-runner` subagent which owns the entire Playwright run end-to-end.
+The orchestrator (this skill) runs in the main conversation. The walk itself is dispatched to the `playwright-driver` subagent which owns the entire Playwright run end-to-end.
 
 For deployed-env QA verification use `/qa <key> <env>` (env = `dev` | `qa` | `staging`). For pre-PR review use `engineer-toolkit:author-review`.
 
@@ -219,7 +219,7 @@ _(Pending.)_
 
 ### Phase 4: Dispatch driver subagent
 
-Construct the dispatch prompt with values resolved in earlier phases, then invoke the `qa-runner` agent via the Task tool.
+Construct the dispatch prompt with values resolved in earlier phases, then invoke the `playwright-driver` agent via the Task tool.
 
 The dispatch prompt supplies the four inputs the agent expects (`state_file`, `apps`, `playwright_launch`, `primary_url`) and the return contract. Nothing else — the agent's own definition carries the procedure.
 

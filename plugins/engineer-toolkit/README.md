@@ -37,7 +37,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 
 - **code-reviewer** (Sonnet) — Bugs, security, performance, maintainability. Read-only.
 - **architect-review** (Opus) — Design decisions, system boundaries, cost-of-change. Read-only with Mermaid diagrams.
-- **qa-runner** (Sonnet) — Headless Playwright driver for fully-automated regression / smoke passes (future use).
+- **playwright-driver** (Sonnet) — Headless Playwright driver. Walks a fixed plan against a running web app, tails logs, returns a verdict. Dispatched by /smoke today; designed to be reusable by any orchestrator that can supply the documented inputs.
 
 ## Prerequisites
 
