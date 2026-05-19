@@ -276,13 +276,12 @@ In targeted mode, the summary covers only `<TARGET>`. Sections that don't apply 
 
 ### Phase 7: Suggest next work (full pass, idle only)
 
-Run only if **all** of these are true:
+Run only if **both** of these are true:
 
 - Mode is full pass (no argument).
 - Phase 5 dispatched zero subagents (no items had the `go` flag).
-- Active folder has at least one item.
 
-Otherwise skip silently.
+The Active folder may be empty — in that case the local "What to do next" bucketing produces zero rows but the **Pull from Jira** discovery block (see below) still runs, which is the whole point on a fresh workspace.
 
 Goal: surface what the user can do next, grouped by the action required. Bucket every Active item into exactly one of these groups based on the issue file's local `Status:`:
 
@@ -311,13 +310,15 @@ What to do next
 ...
 ```
 
-Truncate title to 50 chars with `…` if longer. Omit empty buckets entirely. If every Active item lands in **Tracking / parent** (i.e., nothing actionable), print:
+Truncate title to 50 chars with `…` if longer. Omit empty buckets entirely. If Active is empty, OR if every Active item lands in **Tracking / parent** (nothing actionable), print:
 
 ```
 What to do next
 
 Nothing in Active is waiting on you. Pull a new ticket with /jira-import.
 ```
+
+The **Pull from Jira** discovery block below then runs and lists concrete candidate keys to import.
 
 Keep the section terse — this is a nudge, not a report.
 
@@ -327,8 +328,10 @@ After the in-chat "What to do next" output, also check Jira for assigned work th
 
 1. Call `mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql` with:
    - `cloudId: <CloudId>`
-   - `jql: project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
+   - `jql: assignee = currentUser() AND statusCategory != Done`
    - `fields: ["summary", "status", "priority"]`
+
+   No project filter — the toolkit may be used at sites with different project keys, and a JQL that hard-codes `CRD`/`CO` silently hides every other ticket. `statusCategory != Done` is the Jira-portable way to say "not closed" without naming specific status values.
 2. Build a "known keys" set from directory names in `<workspace>\Active\*\`, `<workspace>\Complete\*\`, and `<workspace>\Archive\*\` (case-insensitive comparison).
 3. Filter the JQL result to keys NOT in the known set.
 4. If any remain, print as a new bucket appended to the "What to do next" chat output:
