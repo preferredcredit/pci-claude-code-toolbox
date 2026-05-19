@@ -67,11 +67,11 @@ Required inputs:
 
    At PCI the team workflow uses the PR-level "Waiting for Author" state when reviewers have left unresolved comments — this is separate from individual thread status, but a PR in that state strongly implies the threads are not yet conclusively resolved.
 
-Ask the user for whatever isn't already provided. If a PR link is given, use `gh pr view <number> --json`, `gh api`, or equivalent to pull the prior comment, the inline threads, and their reply chains.
+Ask the user for whatever isn't already provided. If only a PR link is given, ask the user to paste the prior review comment, the inline threads, and their reply chains directly — `gh` is not available at PCI (Azure DevOps on-prem). See workflow doctrine "No GitHub CLI".
 
 ## Step 2: Gather Both Diffs (Delta + Full PR)
 
-> **Skip-if pipeline mode**: Both diffs are pre-supplied in the invocation; the git/gh sub-steps don't apply. The user message will contain a `DELTA DIFF` (changes since prior review) AND a `FULL PR DIFF` (everything in the PR vs target branch). If only one is supplied, note it as a caveat and proceed with what you have.
+> **Skip-if pipeline mode**: Both diffs are pre-supplied in the invocation; the git sub-steps don't apply. The user message will contain a `DELTA DIFF` (changes since prior review) AND a `FULL PR DIFF` (everything in the PR vs target branch). If only one is supplied, note it as a caveat and proceed with what you have.
 
 Two diffs are needed for a complete recheck:
 
