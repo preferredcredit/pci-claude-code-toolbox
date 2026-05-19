@@ -74,7 +74,7 @@ Run the checks in parallel via Bash. Treat a non-zero exit as "not configured."
 | Tool | Why it matters | Check |
 |---|---|---|
 | `git` | All repo cloning + branch ops in `/work`, `/direct`, `/smoke` | `git --version` |
-| `gh` | `gh pr create` in `/work` Phase 6 Wrap; also verifies the user is logged in | `gh --version && gh auth status` |
+| `gh` | `gh pr view` / `gh pr diff` in `/author-review`, `/reviewer-check`, `/rereview` for fetching PR data | `gh --version && gh auth status` |
 | `dotnet` | `dotnet build`/`dotnet test` in `/author-review` and `/smoke` | `dotnet --version` |
 
 For each failed check, print:

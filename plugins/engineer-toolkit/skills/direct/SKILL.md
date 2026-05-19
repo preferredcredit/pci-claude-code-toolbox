@@ -147,24 +147,21 @@ Invoke `engineer-toolkit:author-review` via the Skill tool. Provide it with:
 - Story description: from the `## Description` section
 - Anything to scrutinize: ask the user, otherwise pass "no specific concerns"
 
-The skill runs build/tests, delegates to code-reviewer + architect-review (per its internal logic), and produces a structured PR-ready summary. Save the summary text for use in Phase 6.
+The skill runs build/tests, delegates to code-reviewer + architect-review (per its internal logic), and produces a structured review summary. Surface the summary to the user in chat.
 
 ## Phase 6: Wrap
 
 1. Commit any uncommitted local changes (each clone in AgentWorkspace) with `[Claude]` prefix. Push.
-2. Open PR via `gh pr create`:
-   - Title: `[<TARGET>] <Issue title>`
-   - Body: the author-review summary from Phase 5
+2. Do NOT open a PR. The user opens the PR manually after reviewing the pushed branch.
 3. Update issue file:
    - `Status: Code Review`
-   - `PR: <pr-url>`
    - Remove `Mode: direct` line
-4. Discussion entry: `[agent] Implementation complete. PR: <pr-url>. Author-review: <risk-score>/10, cost: <reversibility>.`
+4. Discussion entry: `[agent] Implementation complete. Branch pushed: fb/<TARGET>. Author-review: <risk-score>/10, cost: <reversibility>.`
 5. Report to user:
    ```
-   Done with <TARGET>. PR opened: <pr-url>
+   Done with <TARGET>. Branch pushed: fb/<TARGET>
    Risk: <score>/10. Cost of change: <reversibility>.
-   Status set to Code Review. You'll transition Jira after merging.
+   Status set to Code Review. Open the PR when ready; transition Jira after merge.
    ```
 
 ## Exit handling (mid-session)
