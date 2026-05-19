@@ -221,32 +221,28 @@ _(Pending.)_
 
 Construct the dispatch prompt with values resolved in earlier phases, then invoke the `qa-runner` agent via the Task tool.
 
+The dispatch prompt supplies the four inputs the agent expects (`state_file`, `apps`, `playwright_launch`, `primary_url`) and the return contract. Nothing else — the agent's own definition carries the procedure.
+
 Prompt template:
 
 ```
-Smoke walk for <TARGET>.
-
 State file: <workspace>\Active\<TARGET>\smoke.md
-Apps:
-  - name: <repo>
-    url: <url>
-    log: <log path>
+
+Apps (name — URL — log path):
+  - <repo> — <url> — <log path>
   ...
 
 Playwright launch configuration:
-  args: [
-    "--auth-server-allowlist=localhost,*.preferredcredit.net",
-    "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
-  ]
+  args:
+    - "--auth-server-allowlist=localhost,*.preferredcredit.net"
+    - "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
   context.ignoreHTTPSErrors: true
   userDataDir: <workspace>\.smoke\profile\<primary-host>\
-  Default to headless. Switch to headed only if an auth wall is detected (see your agent docs).
+  headless: true  (relaunch headed on auth-wall detection per your procedure)
 
 Primary URL: <primary_url>
 
-Execute the plan in the ## Plan section of the state file. Follow your agent definition for per-step behavior, failure handling, free-roam, frontmatter updates, and Verdict.
-
-Return: one line — passed | failed | aborted | auth-fallback — optionally with up to 3 short findings.
+Walk the plan and return: passed | failed | aborted | auth-fallback (optionally with up to 3 short findings).
 ```
 
 Handle the agent's return value:
