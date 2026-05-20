@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__Claude_in_Chrome__navigate, mcp__Claude_in_Chrome__find, mcp__Claude_in_Chrome__form_input, mcp__Claude_in_Chrome__computer, mcp__Claude_in_Chrome__get_page_text, mcp__Claude_in_Chrome__read_page, mcp__Claude_in_Chrome__read_console_messages, mcp__Claude_in_Chrome__list_connected_browsers, mcp__Claude_in_Chrome__select_browser, mcp__Claude_in_Chrome__switch_browser
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block. `<vpn-host>` refers to the On-prem VPN host from the same block.
 
 # QA
 
@@ -65,14 +65,21 @@ Run these phases in order. Do NOT skip ahead.
 
 ### Phase 1: VPN check
 
-Call `mcp__plugin_atlassian_atlassian__atlassianUserInfo` with no parameters.
+Two probes — Atlassian Cloud is public-internet, so it succeeds with or without VPN. The on-prem host (`<vpn-host>`) is the actual VPN signal. Both must succeed.
 
-- On success: proceed silently to Phase 2.
-- On failure (network error, auth error, timeout, any non-200 response): print exactly:
-  ```
-  VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /qa.
-  ```
-  and stop. Do NOT proceed.
+**Probe 1 — Atlassian reachability:** call `mcp__plugin_atlassian_atlassian__atlassianUserInfo` with no parameters. On failure (network error, auth error, timeout, any non-200 response), print:
+```
+VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /qa.
+```
+and stop.
+
+**Probe 2 — On-prem reachability:** run `nslookup <vpn-host> 2>&1 | head -5`. If output contains `can't find`, `NXDOMAIN`, `server can't find`, or the command exits non-zero, print:
+```
+VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /qa.
+```
+(substituting the actual host) and stop.
+
+Only proceed to Phase 2 when both probes pass.
 
 ### Phase 2: Resolve target and set up run folder
 

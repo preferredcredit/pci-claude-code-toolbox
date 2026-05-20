@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block. `<vpn-host>` refers to the On-prem VPN host from the same block.
 
 # Work
 
@@ -60,14 +60,27 @@ Run these phases in order. Do NOT skip ahead. Each phase's output feeds the next
 
 ### Phase 0: VPN check
 
-Call `mcp__plugin_atlassian_atlassian__atlassianUserInfo` with no parameters.
+Two probes — Atlassian Cloud is public-internet and answers with or without VPN, so it alone doesn't prove VPN is up. The on-prem host (`<vpn-host>`, e.g. `tfs.preferredcredit.net`) is the actual VPN signal. Both must succeed.
 
-- On success: proceed silently to Phase 1.
-- On failure (network error, auth error, timeout, any non-200 response): print exactly:
-  ```
-  VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /work.
-  ```
-  and stop. Do NOT proceed to subsequent phases.
+**Probe 1 — Atlassian reachability** (auth + cloud):
+Call `mcp__plugin_atlassian_atlassian__atlassianUserInfo` with no parameters. On failure (network error, auth error, timeout, any non-200 response), print exactly:
+```
+VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /work.
+```
+and stop.
+
+**Probe 2 — On-prem reachability** (the real VPN test):
+Run via Bash:
+```bash
+nslookup <vpn-host> 2>&1 | head -5
+```
+If the output contains `can't find`, `NXDOMAIN`, `server can't find`, or the command exits non-zero, the on-prem DNS isn't resolving — VPN is down. Print exactly:
+```
+VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /work.
+```
+(substituting the actual host) and stop.
+
+Only proceed to Phase 1 when BOTH probes pass. Do NOT proceed if either fails.
 
 ### Phase 1: Refresh PlanningWorkspace
 

@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, Skill, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue
 ---
 
-In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block. `<vpn-host>` refers to the On-prem VPN host from the same block.
 
 # Direct
 
@@ -47,13 +47,23 @@ Store the resolved directory name as `<TARGET>`.
 
 ## Phase 0: VPN check (ticketed items only)
 
-If `<TARGET>` matches the Jira-key pattern, call `mcp__plugin_atlassian_atlassian__atlassianUserInfo`. On failure, print:
+Atlassian Cloud is public-internet — it answers with or without VPN. The on-prem host (`<vpn-host>`) is the actual VPN signal. Both probes must pass.
+
+**Probe 1 — Atlassian reachability:** call `mcp__plugin_atlassian_atlassian__atlassianUserInfo`. On failure, print:
 ```
 VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /direct.
 ```
 and stop.
 
-For adhoc items, skip VPN check (no Jira calls needed at this stage).
+**Probe 2 — On-prem reachability:** run `nslookup <vpn-host> 2>&1 | head -5`. If output contains `can't find`, `NXDOMAIN`, `server can't find`, or the command exits non-zero, print:
+```
+VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /direct.
+```
+(substituting the actual host) and stop.
+
+Only proceed when both probes pass.
+
+For adhoc items, skip VPN check entirely (no Jira / on-prem calls needed at this stage).
 
 ## Phase 0b: Acquire mode lock
 
