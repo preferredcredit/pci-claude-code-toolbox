@@ -16,8 +16,11 @@
 |---|---|
 | Jira CloudId | `19ff5866-fc24-4369-81c2-4b8de43058a3` |
 | Jira site | `https://preferredcredit.atlassian.net` |
+| On-prem VPN host | `tfs.preferredcredit.net` |
 | Primary projects | `CRD`, `CO`, `CHANGE` |
 | Discovery JQL | `project in (CRD, CO) AND status != Complete AND assignee = currentUser()` |
+
+The `On-prem VPN host` is a DNS-resolvable host behind PCI's VPN. Skills probe it during Phase 0 to confirm VPN is up (Atlassian Cloud alone is public-internet and answers regardless of VPN state).
 
 In this document, `<workspace>` refers to the Workspace path above.
 
