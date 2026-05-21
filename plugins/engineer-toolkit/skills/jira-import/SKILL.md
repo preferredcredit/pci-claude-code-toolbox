@@ -59,7 +59,7 @@ _(Newest first - format: [agent] message)_
 [Description from Jira - convert to markdown]
 ```
 
-`Status:` is the **local** workflow state — initialized to `Planning` so the next `/work` dispatches the planning agent. `Jira Status:` is a verbatim mirror of the Jira ticket status (e.g. `Backlog`, `In Development`); only `/work` Phase 2 should ever rewrite it. See the workspace doctrine > "Two-Field Status Model" for details.
+`Status:` is the **local** workflow state — initialized to `Planning` so the next `/work` dispatches the planning agent. `Jira Status:` is a verbatim mirror of the Jira ticket status (e.g. `Backlog`, `In Development`); only `/status` should ever rewrite it. See the workspace doctrine > "Two-Field Status Model" for details.
 
 5. Confirm: `Imported $ARGUMENTS - [summary]. Ready for planning.`
 

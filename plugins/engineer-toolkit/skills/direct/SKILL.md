@@ -30,20 +30,7 @@ If the argument is missing, respond: `Usage: /direct <KEY-or-slug>` and stop.
 
 ## Resolution
 
-Resolve `<arg>` to a target directory:
-
-1. **Exact match:** if `Active\<arg>\` exists, use it as the target.
-2. **Upper-cased Jira-key match:** if `<arg>` matches `^[a-zA-Z]+-\d+$` and the upper-cased form exists in `Active\`, use it.
-3. **Substring match:** case-insensitive substring against `Active\` directory names.
-   - Zero matches: see step 4.
-   - One match: use it.
-   - Multiple matches: print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
-
-4. **Auto-scaffold path (zero matches above):**
-   - If `<arg>` upper-cased matches `^[A-Z]+-\d+$` (looks like a Jira key): run `/jira-import <UPPER-ARG>`. After import succeeds, set the target to the newly created `Active\<UPPER-ARG>\` directory. If import fails (Jira API error, issue not found), print the failure and stop.
-   - Otherwise (looks like an adhoc slug): print `Adhoc slug '<arg>' doesn't exist. Create it first with /adhoc <slug> "<title>".` and stop.
-
-Store the resolved directory name as `<TARGET>`.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` PLUS the **auto-scaffold fallback** variant — on zero matches, /direct may create the target rather than erroring. Store the resolved directory name as `<TARGET>`.
 
 ## Phase 0: VPN check (ticketed items only)
 
@@ -76,14 +63,7 @@ Read `Active\<TARGET>\<TARGET>.md`. Then:
 
 ## Phase 0c: Refresh Jira (ticketed only)
 
-`<CloudId>` below is the Jira CloudId from `## Configuration` in CLAUDE.md.
-
-For ticketed items:
-- Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <TARGET>`, `fields: ["status"]`.
-- Compare the returned status name (case-insensitive after trimming) to the local `Jira Status:` line. If they match, do nothing.
-- If they differ (or the local line is missing):
-  - Update or insert the `Jira Status:` line in the file (use Jira's casing). Insert directly below the `Jira:` URL line if missing.
-  - Insert at the top of Discussion (right after the `_(Newest first - format: [agent] message)_` line, before existing entries): `[sync] Jira status changed from <old-value> to <new-value>.` Use `(none)` for `<old-value>` if the field was missing.
+Run the same `Jira Status:` refresh as `/status` Phase 2, scoped to this single `<TARGET>`. See [`status/SKILL.md`](../status/SKILL.md) → "Phase 2: Refresh `Jira Status:` on ticketed items" for the algorithm (getJiraIssue → compare → update line + Discussion `[sync]` entry). Skip entirely for adhoc targets.
 
 ## Phase 1: Triage
 
@@ -124,25 +104,15 @@ After the skill completes:
 
 ## Phase 4: Execute
 
-**Setup (run on every entry to Execute — steps are idempotent):**
+**Setup (idempotent — re-runs cheaply):**
 
-1. Identify required repos:
-   - **Standard / Full tiers:** read `plan.md` to identify which repos the tasks touch.
-   - **Trivial tier:** use the issue description plus any file paths referenced in it. If unclear, ask the user before cloning.
-2. Create `Active\<TARGET>\AgentWorkspace\` folder if missing.
-3. For each required repo, shallow clone if the per-repo folder is missing (see `PlanningWorkspace\CLAUDE.md` for repo URLs):
-   ```bash
-   git clone --depth 1 <repo-url> "<workspace>\Active\<TARGET>\AgentWorkspace\<RepoName>"
-   ```
-4. In each clone, create branch `fb/<TARGET>` if not already on it. Push it if not already pushed:
-   ```bash
-   git checkout -b fb/<TARGET> 2>/dev/null || git checkout fb/<TARGET>
-   git push -u origin fb/<TARGET> 2>/dev/null || true
-   ```
-5. Update issue file: set `Status: Development` if not already. Set `Branch: <link-to-azure-devops-branch>` (construct link from origin URL) if not already.
-6. **Ticketed items only:** check `Jira Status:` — if already `In Development` (case-insensitive), skip. Otherwise transition Jira to "In Development" using `getTransitionsForJiraIssue` then `transitionJiraIssue`, and update the local `Jira Status:` line on success.
+1. Identify required repos — read `plan.md` (Standard/Full) or the issue description's file paths (Trivial; ask user if unclear).
+2. Ensure `<workspace>\Active\<TARGET>\AgentWorkspace\` exists.
+3. Shallow-clone any missing repos into that folder. Repo URLs live in `PlanningWorkspace\CLAUDE.md`. Branch naming and the create/push pattern follow workflow.md > "Git Conventions": branch `fb/<TARGET>`, create-if-absent, push-if-unpushed.
+4. Update the issue file: set `Status: Development` if not already, populate `Branch:` with the Azure DevOps URL.
+5. **Ticketed items only:** if local `Jira Status:` is not already `In Development`, transition Jira via `getTransitionsForJiraIssue` + `transitionJiraIssue`. Update the local line on success; tolerate failures.
 
-Note: `Status:` stays `Planning` through Phases 2 (Spec) and 3 (Plan); it only flips to `Development` here when Setup runs.
+`Status:` stays `Planning` through Phases 2 (Spec) and 3 (Plan); only Setup flips it to `Development`.
 
 **Execute the plan:**
 
@@ -181,7 +151,7 @@ Match user intent, not exact phrasing. The strings below are illustrative — cl
 | User intent | Example phrases | Action |
 |---|---|---|
 | **Park for async** | "park it", "hand off", "let /work pick it up", "save for later", "come back to this tomorrow", "punt" | Remove `Mode: direct` line. Re-add `go` line at top. Discussion entry: `[orchestrator] Direct session paused. Re-flagged for /work.` Status unchanged. |
-| **Mark complete** | "we're done", "mark complete", "ship it", "all set" | Set `Status: Complete`. Remove `Mode: direct` line. Discussion entry: `[orchestrator] Marked complete. Sweep on next /work.` |
+| **Mark complete** | "we're done", "mark complete", "ship it", "all set" | Set `Status: Complete`. Remove `Mode: direct` line. Discussion entry: `[orchestrator] Marked complete. Sweep on next /status.` |
 | **Chat ends, no exit signal** | (silent) | Do nothing. File stays `Mode: direct`. Next `/direct <TARGET>` resumes; `/work` skips. |
 
 ## Notes

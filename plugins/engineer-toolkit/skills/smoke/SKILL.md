@@ -50,16 +50,7 @@ and stop.
 
 ## Argument Resolution
 
-Resolve to a single `<TARGET>` BEFORE running Phase 0:
-
-1. Exact directory match in `Active\<arg>\` (case-insensitive).
-2. Upper-cased Jira-key match against `Active\` if `<arg>` matches `^[a-zA-Z]+-\d+$`.
-3. Substring match (case-insensitive) across `Active\` directory names.
-
-Outcomes:
-- Zero matches → `No item matches '<arg>'.` and stop.
-- Multiple matches → `Multiple matches for '<arg>': <list>. Be more specific.` and stop.
-- One match → store as `<TARGET>`, proceed.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies. Resolution runs BEFORE Phase 0.
 
 ## Phases
 
@@ -111,54 +102,11 @@ Store the parsed values in memory keyed by repo name for use in subsequent phase
 
 ### Phase 2: Start app(s)
 
-**`--vs` mode:**
+The literal start commands (PowerShell port probe, bash build + spawn, PowerShell ready-signal poll, log-path freshness check) live in [references/start-apps.md](../../references/start-apps.md). The flow:
 
-1. Print, for each app:
-   ```
-   Start <repo> in Visual Studio (launch profile: <profile>, expected URL: <url>).
-   Redirect stdout/stderr to a log file I can read. Reply with the absolute log path.
-   ```
-2. Wait for the user's response per app. Validate:
-   ```powershell
-   $exists = Test-Path "<path>"
-   $age = if ($exists) { (Get-Date) - (Get-Item "<path>").LastWriteTime } else { $null }
-   ```
-   If `-not $exists` or `$age.TotalMinutes -gt 5` → re-prompt.
-3. Store log paths in memory. Set `apps_started_by: vs` in smoke.md frontmatter.
+**`--vs` mode:** for each app, print `Start <repo> in Visual Studio (launch profile: <profile>, expected URL: <url>). Redirect stdout/stderr to a log file I can read. Reply with the absolute log path.` Wait for the user's response, validate the path (exists + modified within 5 min), re-prompt on failure. Set `apps_started_by: vs` in smoke.md.
 
-**Default mode (Claude starts):**
-
-1. For each app, probe its port:
-   ```powershell
-   $listening = Get-NetTCPConnection -LocalPort <port> -State Listen -ErrorAction SilentlyContinue
-   ```
-   If listening → prompt `R | K | A`:
-   - R → ask user for the log path of the already-running app, validate as in `--vs` mode.
-   - K → identify owning PID, run `Stop-Process -Id <pid> -Force`, then proceed to fresh start.
-   - A → exit.
-2. Build each repo once:
-   ```bash
-   cd "<workspace>/Active/<TARGET>/AgentWorkspace/<repo>"
-   dotnet build "<solution>"
-   ```
-   Non-zero exit → halt, surface the error, abort.
-3. Determine start order from `depends_on`. Topological sort. If no dependencies declared, use AgentWorkspace listing order.
-4. For each app in order, spawn via Bash with `run_in_background: true`:
-   ```bash
-   cd "<workspace>/Active/<TARGET>/AgentWorkspace/<repo>"
-   dotnet run --project "<startup_project>" --launch-profile <launch_profile> > "<workspace>/Active/<TARGET>/<repo>.log" 2>&1
-   ```
-   Capture the returned shell ID. Track for cleanup.
-5. Poll each log for `ready_signal` with a 60s timeout:
-   ```powershell
-   $deadline = (Get-Date).AddSeconds(60)
-   while ((Get-Date) -lt $deadline) {
-     if (Select-String -Path "<log path>" -Pattern "<ready_signal>" -SimpleMatch -Quiet) { break }
-     Start-Sleep -Milliseconds 500
-   }
-   if ((Get-Date) -ge $deadline) { abort "Ready-signal timeout for <repo>." }
-   ```
-6. Set `apps_started_by: claude` in smoke.md frontmatter; record PID + shell ID per app.
+**Default mode (Claude starts):** for each app, port-probe to detect already-running instances (prompt `R | K | A` if listening). Build each repo once (abort on non-zero exit). Determine start order via `depends_on` topo sort. Spawn each app in background via `dotnet run`. Poll each log for the `ready_signal` with a 60s timeout. Set `apps_started_by: claude` and record PID + shell ID per app for cleanup.
 
 ### Phase 3: Compose walk plan
 
@@ -223,38 +171,7 @@ The agent is a pure function: dispatch prompt in, return message out. It does no
 
 #### Step 1: Compose the dispatch prompt
 
-Read the `## Plan` section of `Active\<TARGET>\smoke.md` and inline the steps into the `Plan:` block of the template below. Use the apps + playwright launch values resolved in earlier phases.
-
-Prompt template:
-
-```
-Plan:
-1. action: <action>
-   expect: <expect>
-2. action: ...
-   expect: ...
-...
-
-Apps (name — URL — log path):
-  - <repo> — <url> — <log path>
-  ...
-
-Playwright launch configuration:
-  args:
-    - "--auth-server-allowlist=localhost,*.preferredcredit.net"
-    - "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
-  context.ignoreHTTPSErrors: true
-  userDataDir: <workspace>\.smoke\profile\<primary-host>\
-  headless: true  (relaunch headed on auth-wall detection per your procedure)
-
-Primary URL: <primary_url>
-
-Screenshots dir: <workspace>\Active\<TARGET>\Screenshots\
-
-Starting step: <N>     (omit this line entirely if starting from step 1)
-
-Walk the plan and return: Verdict line + ## Step Results block per your return-format spec.
-```
+Read the `## Plan` section of `Active\<TARGET>\smoke.md` and substitute it into the dispatch prompt template at [references/playwright-dispatch-prompt.md](../../references/playwright-dispatch-prompt.md). Also substitute the Apps tuples, the primary URL, the Screenshots dir, and the per-host profile dir from the values resolved in Phases 0–2. Include the optional `Starting step: <N>` line on re-dispatch after auth-fallback; omit on first dispatch.
 
 #### Step 2: Invoke the agent
 
