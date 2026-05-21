@@ -2,8 +2,7 @@
 name: author-review
 description: Run an author self-review before creating a PR at PCI. Gathers context, assesses complexity, runs specialized agents, and produces a structured review summary for the PR description.
 argument-hint: "[PR link or branch name]"
-disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, Task
 ---
 
 # Author Self-Review
