@@ -41,19 +41,20 @@ For each required plugin `<name>@<marketplace>`:
 
 Apply the same algorithm to optional plugins; warn only, do not gate.
 
-For each required plugin not in **enabled** state, print one of these remediation blocks:
+For each required plugin not in **enabled** state, print the matching remediation block:
 
 ```
-[!] Required plugin not installed: <plugin-name>
-    Install: in Claude Code, run /plugin → Discover → install "<short-name>"
-    Marketplace: <marketplace-name>
+[!] Required plugin <status>: <plugin-name>
+    <fix>
+    <secondary-line>
 ```
 
-```
-[!] Required plugin installed but disabled: <plugin-name>
-    Enable: in Claude Code, run /plugin → enable "<short-name>"
-    Or edit ~/.claude/settings.json: set enabledPlugins["<plugin>@<marketplace>"] to true
-```
+Status / fix / secondary-line by case:
+
+| Case | `<status>` | `<fix>` | `<secondary-line>` |
+|---|---|---|---|
+| not-installed | `not installed` | `Install: in Claude Code, run /plugin → Discover → install "<short-name>"` | `Marketplace: <marketplace-name>` |
+| installed-but-disabled | `installed but disabled` | `Enable: in Claude Code, run /plugin → enable "<short-name>"` | `Or edit ~/.claude/settings.json: set enabledPlugins["<plugin>@<marketplace>"] to true` |
 
 For each missing optional plugin, print a warning but continue.
 
@@ -222,59 +223,24 @@ Path-scoped rules under `<workspace>\.claude\rules\` are NOT scaffolded by this 
 
 ## Phase 4 — Summary
 
-The summary varies by flow:
+Print a one-line headline followed by labeled file lists. Only print the sections that apply to the flow that actually ran.
 
-### New workspace
+| Flow | Headline | Sections to include |
+|---|---|---|
+| New workspace | `Workspace ready at <workspace>.` | `Created:` (all 9 scaffolded paths), then `Next steps:` (the 4 entry-point commands below) |
+| Refresh | `Workspace at <workspace> refreshed (v<old> → v<new>).` | `Updated:` (workflow.md, VERSION), `Untouched (user-owned):` (CLAUDE.md) |
+| Pre-split migration | `Workspace at <workspace> migrated to plugin v<plugin-version>.` | `Backed up:` (CLAUDE.md.bak-<timestamp>), `Created:` (.engineer-toolkit/ + contents), `Rewrote:` (CLAUDE.md) |
+
+`Created:` and `Updated:` list paths with a brief parenthetical for plugin-managed files (e.g. `.engineer-toolkit\workflow.md   (plugin-managed doctrine)`).
+
+**Next steps** block (new-workspace flow only):
 
 ```
-Workspace ready at <workspace>.
-
-Created:
-  Active\
-  Complete\
-  Archive\
-  PlanningWorkspace\
-  PlanningWorkspace\CLAUDE.md
-  .engineer-toolkit\
-  .engineer-toolkit\workflow.md   (plugin-managed doctrine)
-  .engineer-toolkit\VERSION       (<plugin-version>)
-  CLAUDE.md                       (your editable config)
-
 Next steps:
   /jira-import <KEY>       Import a Jira ticket to start ticketed work
   /adhoc <slug> "<title>"  Start an unticketed work item
   /work                    Dispatch go-flagged items (queue runner)
   /status                  Refresh Jira, sweep, dashboard, suggest next work
-```
-
-### Refresh
-
-```
-Workspace at <workspace> refreshed (v<old> → v<new>).
-
-Updated:
-  .engineer-toolkit\workflow.md
-  .engineer-toolkit\VERSION
-
-Untouched (user-owned):
-  CLAUDE.md
-```
-
-### Pre-split migration
-
-```
-Workspace at <workspace> migrated to plugin v<plugin-version>.
-
-Backed up:
-  CLAUDE.md.bak-<YYYYMMDDHHMMSS>   (previous monolithic CLAUDE.md)
-
-Created:
-  .engineer-toolkit\
-  .engineer-toolkit\workflow.md   (plugin-managed doctrine; was inlined in old CLAUDE.md)
-  .engineer-toolkit\VERSION       (<plugin-version>)
-
-Rewrote:
-  CLAUDE.md                       (now minimal: Configuration + @import; values preserved)
 ```
 
 ## Safety rules
