@@ -71,116 +71,59 @@ Only proceed to Phase 2 when both probes pass.
 
 ### Phase 2: Resolve target and set up run folder
 
-Three cases — pick the one that matches `<TARGET>`:
+Branch by whether the QA run folder already exists.
 
-#### Case A: `QA\Active\<TARGET>\` exists
+**If `<workspace>\QA\Active\<TARGET>\` exists — resume case.** Read `run.md`, extract `status` from frontmatter, then:
 
-Resume an existing run.
+- `status: in-progress` — find the highest step in `## Execution Log`, print `Resuming <TARGET> from step <N>: <description>.`, continue to Phase 3.
+- `status: passed | failed | blocked` — print `## Verdict`, then prompt:
+  ```
+  Run is currently <status>. Options:
+    R — re-run from scratch (archives current run.md to run-<timestamp>.md)
+    F — fork to a new scenario (archives, then prompts Phase 3 Step 3 for new scope)
+    C — close (no action, /qa exits)
+  ```
+  On `R` or `F`: rename existing `run.md` to `run-<YYYYMMDDHHMMSS>.md`, then proceed as fresh case below (F sets a flag for Phase 3 Step 3 to ask new scope). On `C`: print `Closed.` and stop.
 
-1. Read `QA\Active\<TARGET>\run.md`.
-2. Extract the `status` field from the YAML frontmatter.
-3. **If `status: in-progress`:**
-   - Look at the `## Execution Log` section to find the highest step number already logged.
-   - The next step to execute is the step after it in the `## Plan` section.
-   - Print: `Resuming <TARGET> from step <N>: <step description>.`
-   - Continue to Phase 3.
-4. **If `status: passed`, `status: failed`, or `status: blocked`:**
-   - Print the contents of the `## Verdict` section.
-   - Ask user (this is a literal prompt — wait for response):
-     ```
-     Run is currently <status>. Options:
-       R — re-run from scratch (archives current run.md to run-<timestamp>.md)
-       F — fork to a new scenario (archives, starts fresh with new scope)
-       C — close (no action, /qa exits)
-     ```
-   - On `R`: rename existing `run.md` to `run-<YYYYMMDDHHMMSS>.md`, then proceed as if Case B/C (depending on target type).
-   - On `F`: same as `R`, but during Phase 3 Step 3 prompt the user for new scenario context.
-   - On `C`: print `Closed.` and stop.
+**If `<workspace>\QA\Active\<TARGET>\` does not exist — fresh case.**
 
-#### Case B: Target is a Jira key without a QA run
+1. Create folders: `<workspace>\QA\Active\<TARGET>\Screenshots` and `Notes`.
+2. **Ticketed target** (matches `^[A-Z]+-\d+$`): call `getJiraIssue` (`cloudId: <CloudId>`, `issueIdOrKey: <TARGET>`, `fields: ["summary", "description", "status"]`). On failure, print `Failed to fetch Jira ticket <TARGET>: <error>. Continuing without Jira-pre-fill.` and treat as adhoc below.
+3. Write `run.md` using the canonical template (next subsection); only the `## Scope` section differs:
+   - Ticketed: Jira summary as a bold line, then Jira description verbatim.
+   - Adhoc (or ticketed-with-failed-fetch): the placeholder `_(Adhoc — to be authored at start of execution.)_`. Phase 3 Step 2 will prompt the user to author Scope.
 
-(Target matches `^[A-Z]+-\d+$` AND `QA\Active\<TARGET>\` does NOT exist.)
+#### Canonical `run.md` template
 
-1. Create folders:
-   ```bash
-   mkdir -p "<workspace>/QA/Active/<TARGET>/Screenshots"
-   mkdir -p "<workspace>/QA/Active/<TARGET>/Notes"
-   ```
-2. Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with:
-   ```
-   cloudId: <CloudId>
-   issueIdOrKey: <TARGET>
-   fields: ["summary", "description", "status"]
-   ```
-3. If the call fails: print `Failed to fetch Jira ticket <TARGET>: <error>. Continuing without Jira-pre-fill.` and treat as Case C (adhoc).
-4. Write `QA\Active\<TARGET>\run.md` using this template (substitute placeholders):
-   ```markdown
-   ---
-   target: <TARGET>
-   env: <ENV>
-   scenario: (to be determined)
-   started: <ISO 8601 timestamp, e.g., 2026-05-11T14:00:00Z>
-   status: in-progress
-   ---
+Used for both fresh ticketed and fresh adhoc runs. Substitute `<TARGET>`, `<ENV>`, the ISO 8601 timestamp, and the Scope content.
 
-   # QA Run: <TARGET>
+```markdown
+---
+target: <TARGET>
+env: <ENV>
+scenario: (to be determined)
+started: <ISO 8601 timestamp>
+status: in-progress
+---
 
-   ## Scope
+# QA Run: <TARGET>
 
-   **<Jira summary>**
+## Scope
 
-   <Jira description, verbatim — already markdown>
+<Scope content — see Phase 2 rules above for ticketed vs adhoc>
 
-   ## Plan
+## Plan
 
-   _(To be composed in Phase 3.)_
+_(To be composed in Phase 3.)_
 
-   ## Execution Log
+## Execution Log
 
-   _(Newest entries appended below.)_
+_(Newest entries appended below.)_
 
-   ## Verdict
+## Verdict
 
-   _(Pending.)_
-   ```
-
-#### Case C: Target is an adhoc slug without a QA run
-
-(Target does NOT match `^[A-Z]+-\d+$` AND `QA\Active\<TARGET>\` does NOT exist.)
-
-1. Create folders:
-   ```bash
-   mkdir -p "<workspace>/QA/Active/<TARGET>/Screenshots"
-   mkdir -p "<workspace>/QA/Active/<TARGET>/Notes"
-   ```
-2. Write `QA\Active\<TARGET>\run.md`:
-   ```markdown
-   ---
-   target: <TARGET>
-   env: <ENV>
-   scenario: (to be determined)
-   started: <ISO 8601 timestamp>
-   status: in-progress
-   ---
-
-   # QA Run: <TARGET>
-
-   ## Scope
-
-   _(Adhoc — to be authored at start of execution.)_
-
-   ## Plan
-
-   _(To be composed in Phase 3.)_
-
-   ## Execution Log
-
-   _(Newest entries appended below.)_
-
-   ## Verdict
-
-   _(Pending.)_
-   ```
+_(Pending.)_
+```
 
 ### Phase 3: Execute QA (in-conversation execution loop)
 
@@ -334,47 +277,22 @@ If the step is tagged `[assertion]`:
 
 Three failure modes:
 
-**Hard abort** — triggered by:
-- App crashed, blocking error, or unrecoverable data state observed during an automated step.
-- User typed `abort: <reason>` at a manual prompt.
+| Mode | Trigger | Resolution |
+|---|---|---|
+| **Hard abort** | App crashed / unrecoverable state during an automated step, OR user typed `abort: <reason>` at a manual prompt | Set `status: failed`; write `## Verdict` as `**ABORTED at step <N>.** Reason: <reason>. See Execution Log for details.`; skip to Phase 4. |
+| **Step-level failure** | Assertion mismatch, OR user replied `fail: <reason>` at a manual prompt | Halt; prompt user with the `C / A / B` menu below. `C` → log decision, continue. `A` → handle as Hard abort. `B` → set `status: blocked`, write Verdict with block reason, skip to Phase 4. |
+| **Tooling failure** | Chrome MCP timeout, selector not found, element not interactable — the app itself is healthy | Retry once. If still failing, append `[tooling-fallback] Chrome MCP failed: <error>. Degrading to manual.` to the Execution Log, then treat the step as `[manual]` and continue. |
 
-Actions:
-1. Set `status: failed` in `run.md` frontmatter.
-2. Replace `## Verdict` content with:
-   ```markdown
-   ## Verdict
+Step-level failure prompt:
 
-   **ABORTED at step <N>.** Reason: <reason>.
+```
+Step <N> failed: <observed> vs <expected, or user-stated reason>.
 
-   See Execution Log for details.
-   ```
-3. Skip to Phase 4.
-
-**Step-level failure** — assertion mismatch or user replied `fail: <reason>` at a manual prompt.
-
-Actions:
-1. Halt execution and prompt user:
-   ```
-   Step <N> failed: <observed> vs <expected, or user-stated reason>.
-
-   Options:
-     C — continue to next step (mark this step failed but keep going)
-     A — abort (end run as failed)
-     B — mark blocked (end run as blocked, e.g., waiting on a code fix)
-   ```
-2. On `C`: log the user's decision in Execution Log, continue to next step.
-3. On `A`: same as Hard abort.
-4. On `B`: set `status: blocked`, write Verdict noting the block reason, skip to Phase 4.
-
-**Tooling failure** — Chrome MCP timeout, selector not found, element not interactable; the application itself is healthy.
-
-Actions:
-1. Retry the action once.
-2. If still failing, append to Execution Log:
-   ```
-   - <HH:MM:SS> — [tooling-fallback] Chrome MCP failed: <error>. Degrading to manual.
-   ```
-3. Treat the step as `[manual]` from this point — print the manual prompt and wait for user response. Continue.
+Options:
+  C — continue to next step (mark this step failed but keep going)
+  A — abort (end run as failed)
+  B — mark blocked (end run as blocked, e.g., waiting on a code fix)
+```
 
 #### Step 7: Final verdict (full pass)
 
@@ -390,57 +308,9 @@ If all plan steps logged `Result: passed` (and no aborts occurred):
 
 #### Step 8: Offer library promotion (passed runs only)
 
-Skip this step if `status` is `failed` or `blocked`. Partial or incorrect sequences should not become reusable how-tos.
+If `status` is `passed`, run the library-promotion routine: scan the Execution Log for reusable patterns, prompt the user per candidate, and write accepted how-tos to `<workspace>\QA\HowTos\`. See [references/library-promotion.md](../../references/library-promotion.md) for the detection rules, the user prompt format, and the how-to template.
 
-For `status: passed` runs:
-
-1. Scan the `## Execution Log` for inlined step sequences that could become reusable how-tos. Look for:
-   - 2+ consecutive steps that together form a single domain operation (e.g., "navigate → fill borrower form → submit → capture id" = `create-borrower`).
-   - Manual-step prompts describing a discrete user action with clear inputs and outputs.
-   - Sequences that referenced no existing how-to (you authored them inline during plan composition).
-2. For each candidate sequence, propose a how-to name (kebab-case, derived from the operation, e.g., `create-borrower`, `originate-deal`). Check `QA\HowTos\` for name collisions; if a collision exists, append a numeric suffix or pick a more specific name.
-3. Prompt the user once per candidate (in order; do not batch):
-   ```
-   Detected a reusable pattern in steps <N>-<M>:
-     <one-line summary of the sequence>
-     Inputs:  <comma-separated input names>
-     Outputs: <comma-separated output names>
-
-   Save as `QA\HowTos\<proposed-name>.md`?
-     Y — yes, save as proposed
-     R — rename, then save (I'll ask for the new name)
-     N — no, skip this one
-   ```
-4. Wait for response.
-   - **Y**: write the how-to file using the template below. Append a line to the Execution Log: `[promoted] Steps <N>-<M> → QA\HowTos\<proposed-name>.md`.
-   - **R**: ask `What name? (kebab-case, no path or .md extension)`, validate (kebab-case format, no collision); on valid input, write file and log `[promoted]` entry. On invalid input, ask again or fall back to `N` after two tries.
-   - **N**: skip silently. Move to next candidate.
-5. After all candidates handled (or if no candidates found): continue to Phase 4.
-
-If the user replies with anything other than `Y | R | N` at the prompt, re-ask once; on second invalid response, default to `N` for that candidate.
-
-**How-to template** (use when promoting):
-
-```markdown
----
-name: <kebab-case-name>
-description: <one-line description derived from the sequence>
-inputs: [<list of input names extracted from the sequence>]
-outputs: [<list of output names captured in the sequence>]
----
-
-# How-To: <Title Case Name>
-
-## Steps
-
-<numbered list of steps copied from the inlined sequence, preserving [automated]/[manual]/[assertion] tags. Replace concrete values from the source run with `{{var}}` placeholders where they correspond to inputs.>
-
-## Notes
-
-- Promoted from run `<TARGET>` on <YYYY-MM-DD>.
-```
-
-Library promotion applies only to how-tos in v1. Test data templates and named scenarios are not auto-promoted; the user can request those explicitly after the run.
+Skip this step entirely if `status` is `failed` or `blocked` — partial or incorrect sequences should not become reusable how-tos. After all candidates handled (or none found), continue to Phase 4.
 
 ### Phase 4: Report and cross-write
 
