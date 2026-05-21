@@ -1,15 +1,17 @@
 ---
 name: status
-description: Discovery + housekeeping pass over C:\ClaudeWorkspace\Active\. Refresh PlanningWorkspace, sync Jira Status field on local files, sweep completed items, print dashboard (markdown + HTML), suggest next work, surface unimported Jira tickets. No dispatch.
+description: Discovery + housekeeping pass over <workspace>\Active\. Refresh PlanningWorkspace, sync Jira Status field on local files, sweep completed items, print dashboard (markdown + HTML), suggest next work, surface unimported Jira tickets. No dispatch.
 argument-hint: ""
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 ---
 
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
+
 # Status
 
-Run a discovery + housekeeping pass over `C:\ClaudeWorkspace\Active\`. Idempotent — re-runs cheaply. Owns all writes to the `Jira Status:` field on local issue files. Does NOT dispatch any work (`/work` does that).
+Run a discovery + housekeeping pass over `<workspace>\Active\`. Idempotent — re-runs cheaply. Owns all writes to the `Jira Status:` field on local issue files. Does NOT dispatch any work (`/work` does that).
 
 ## Two-field status model
 
@@ -22,10 +24,15 @@ Adhoc items only have `Status:`. No `Jira Status:` line.
 
 ## Configuration
 
-- CloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
-- PlanningWorkspace: `C:\ClaudeWorkspace\PlanningWorkspace\`
-- Active folder: `C:\ClaudeWorkspace\Active\`
-- Complete folder: `C:\ClaudeWorkspace\Complete\`
+Read from the workspace `CLAUDE.md` `## Configuration` block:
+- `Workspace path` (referred to as `<workspace>`)
+- `Jira CloudId` (referred to as `<CloudId>`)
+- `Discovery JQL` (used in Phase 5 — the JQL string that surfaces assigned-but-unimported tickets)
+
+Hardcoded in this skill:
+- PlanningWorkspace: `<workspace>\PlanningWorkspace\`
+- Active folder: `<workspace>\Active\`
+- Complete folder: `<workspace>\Complete\`
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
 
 ## Mode
@@ -46,16 +53,16 @@ VPN check failed — Atlassian API unreachable. Connect to VPN and re-run /statu
 
 and stop.
 
-Note: `/status` does NOT probe TFS. PlanningWorkspace refresh (Phase 1) talks to GitHub / Azure DevOps for those repos, not the on-prem TFS server. If you also need to dispatch work, `/work` will do its own TFS probe.
+Note: `/status` does NOT probe the on-prem VPN host. PlanningWorkspace refresh (Phase 1) talks to GitHub / Azure DevOps for those repos, not the on-prem server. If you also need to dispatch work, `/work` will do its own on-prem VPN probe.
 
 ### Phase 1: Refresh PlanningWorkspace
 
-For each subdirectory in `C:\ClaudeWorkspace\PlanningWorkspace\`, fetch + reset to `origin/main`. If a repo fails (network, conflict, missing remote), capture the error and continue with the next repo. Track failed repos for Phase 6.
+For each subdirectory in `<workspace>\PlanningWorkspace\`, fetch + reset to `origin/main`. If a repo fails (network, conflict, missing remote), capture the error and continue with the next repo. Track failed repos for Phase 6.
 
-Use this single bash command:
+Use this single bash command (substitute the actual workspace path):
 
 ```bash
-cd C:/ClaudeWorkspace/PlanningWorkspace && for dir in */; do
+cd <workspace>/PlanningWorkspace && for dir in */; do
   echo "=== $dir ==="
   (cd "$dir" && git fetch origin 2>&1 && git reset --hard origin/main 2>&1) || echo "FAILED: $dir"
 done
@@ -65,14 +72,14 @@ done
 
 Phase 2 refreshes the **`Jira Status:`** field only. It NEVER touches the local **`Status:`** field.
 
-1. Enumerate all `C:\ClaudeWorkspace\Active\*\` directories via Glob.
+1. Enumerate all `<workspace>\Active\*\` directories via Glob.
 2. For each directory `<DIR>`:
    - If `<DIR>` matches the Jira-key regex (`^[A-Z]+-\d+$`), it is a **ticketed item**.
    - Otherwise, it is an **adhoc item** — skip.
 3. For each ticketed item:
-   - Read the issue file at `C:\ClaudeWorkspace\Active\<DIR>\<DIR>.md`.
+   - Read the issue file at `<workspace>\Active\<DIR>\<DIR>.md`.
    - Extract the current `Jira Status:` field, if present. If missing, treat the previous value as empty.
-   - Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`, `issueIdOrKey: <DIR>`, `fields: ["status"]`.
+   - Call `mcp__plugin_atlassian_atlassian__getJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <DIR>`, `fields: ["status"]`.
    - Compare the new Jira status name to the local field (case-insensitive after trimming).
    - **If they match:** do nothing.
    - **If they differ (or the field is missing):**
@@ -94,8 +101,8 @@ To insert at the top of Discussion safely with the Edit tool, find the existing 
      - **Adhoc**: sweep if local `Status:` is `Complete` (case-insensitive).
 3. For each item to sweep:
    ```bash
-   mv "C:/ClaudeWorkspace/Active/<DIR>" "C:/ClaudeWorkspace/Complete/<DIR>"
-   rm -rf "C:/ClaudeWorkspace/Complete/<DIR>/AgentWorkspace"
+   mv "<workspace>/Active/<DIR>" "<workspace>/Complete/<DIR>"
+   rm -rf "<workspace>/Complete/<DIR>/AgentWorkspace"
    ```
 4. Track swept items for Phase 6.
 
@@ -121,7 +128,7 @@ Locked to chat: <L> items have Mode: direct (<comma-separated keys>)
 - If `<N>` is 0, print `Active Work (0 items)` and skip the table.
 - If `<K>` is 0, print `Ready for agent: 0 items.`
 
-**Also write `C:\ClaudeWorkspace\dashboard.html`** (when `<N>` ≥ 1):
+**Also write `<workspace>\dashboard.html`** (when `<N>` ≥ 1):
 
 Single-file dark-themed HTML report with the same per-item data, rendered as a card/table action board. Color-code rows by `Status:`, show `Jira Status:` and `Branch` as clickable links where applicable, mark `Mode: direct` items with a distinct badge. Skip the HTML write if `<N>` is 0 — leave any prior `dashboard.html` in place.
 
@@ -164,8 +171,8 @@ Nothing in Active is waiting on you. Pull a new ticket with /jira-import.
 After the in-chat "What to do next" output:
 
 1. Call `mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql` with:
-   - `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`
-   - `jql: project in (CRD, CO) AND status != Complete AND assignee = currentUser()`
+   - `cloudId: <CloudId>`
+   - `jql: <Discovery JQL>` (from `## Configuration` — typically `project in (CRD, CO) AND status != Complete AND assignee = currentUser()`)
    - `fields: ["summary", "status", "priority"]`
 2. Build a "known keys" set from directory names in `Active\*\`, `Complete\*\`, and `Archive\*\` (case-insensitive comparison).
 3. Filter the JQL result to keys NOT in the known set.

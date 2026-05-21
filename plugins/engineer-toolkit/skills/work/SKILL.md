@@ -1,15 +1,17 @@
 ---
 name: work
-description: Process go-flagged items in C:\ClaudeWorkspace\Active\, or force-dispatch a single named item. Local-first queue runner. For dashboard / sync / sweep / discovery, use /status.
+description: Process go-flagged items in <workspace>\Active\, or force-dispatch a single named item. Local-first queue runner. For dashboard / sync / sweep / discovery, use /status.
 argument-hint: "[key-or-hint]"
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue
 ---
 
+In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block. `<vpn-host>` refers to the On-prem VPN host from the same block.
+
 # Work
 
-Process go-flagged items in `C:\ClaudeWorkspace\Active\`. Lightweight, local-first — no Jira sync, no dashboard, no sweep. For the full discovery + housekeeping pass, use `/status`.
+Process `go`-flagged items in `<workspace>\Active\`. Lightweight, local-first — no Jira sync, no dashboard, no sweep. For the full discovery + housekeeping pass, use `/status`.
 
 ## Two-field status model
 
@@ -22,9 +24,14 @@ Adhoc items (kebab-case directories, no `Jira:` line) only have `Status:`.
 
 ## Configuration
 
-- CloudId: `19ff5866-fc24-4369-81c2-4b8de43058a3`
-- Active folder: `C:\ClaudeWorkspace\Active\`
-- Complete folder: `C:\ClaudeWorkspace\Complete\` (sweep happens in `/status`, not here)
+Read from the workspace `CLAUDE.md` `## Configuration` block:
+- `Workspace path` (referred to as `<workspace>`)
+- `Jira CloudId` (referred to as `<CloudId>`)
+- `On-prem VPN host` (referred to as `<vpn-host>`)
+
+Hardcoded in this skill:
+- Active folder: `<workspace>\Active\`
+- Complete folder: `<workspace>\Complete\` (sweep happens in `/status`, not here)
 - Jira key pattern (regex): `^[A-Z]+-\d+$`
 
 ## Modes
@@ -34,9 +41,9 @@ Adhoc items (kebab-case directories, no `Jira:` line) only have `Status:`.
 
 ## Argument resolution (targeted mode only)
 
-When an argument is provided, resolve it to a single `Active\<DIR>\` BEFORE running the TFS probe. Resolution order (first match wins):
+When an argument is provided, resolve it to a single `Active\<DIR>\` BEFORE running the VPN probe. Resolution order (first match wins):
 
-1. **Exact directory match** (case-insensitive): use Glob on `C:\ClaudeWorkspace\Active\<arg>\`.
+1. **Exact directory match** (case-insensitive): use Glob on `<workspace>\Active\<arg>\`.
 2. **Upper-cased Jira-key match**: if the argument matches `^[a-zA-Z]+-\d+$`, upper-case it and try as an exact match (`co-322` → `CO-322`).
 3. **Substring match**: case-insensitive substring against all `Active\` directory names.
 
@@ -46,29 +53,30 @@ Outcomes:
 - **Multiple matches** — print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
 - **One match** — store the resolved directory name as `<TARGET>` and proceed.
 
-## Phase 0: TFS DNS probe
+## Phase 0: On-prem VPN probe
 
-`/work` does NOT call Atlassian as a gate. Jira transitions during dispatch are best-effort. The only network dep that gates dispatch is the on-prem TFS server (needed for `git clone` / `git push`).
+`/work` does NOT call Atlassian as a gate. Jira transitions during dispatch are best-effort. The only network dep that gates dispatch is the on-prem git server (needed for `git clone` / `git push`). Atlassian Cloud is public-internet and answers regardless of VPN state, so it's not a reliable VPN signal — `<vpn-host>` is.
 
 Run via Bash:
 ```bash
-nslookup tfs.preferredcredit.net 2>&1 | head -5
+nslookup <vpn-host> 2>&1 | head -5
 ```
+(substituting the actual value from `## Configuration`).
 
 If the output contains `can't find`, `NXDOMAIN`, `server can't find`, or the command exits non-zero, the on-prem DNS isn't resolving. Print exactly:
 
 ```
-VPN check failed — tfs.preferredcredit.net not resolving. Connect to VPN and re-run /work.
+VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /work.
 ```
 
-and stop.
+(substituting the actual host) and stop.
 
 If you also need a dashboard / Jira sync / sweep, run `/status` after VPN is restored.
 
 ## Phase 1: Build queue
 
 **Full pass:**
-- Enumerate all `Active\*\` directories via Glob.
+- Enumerate all `<workspace>\Active\*\` directories via Glob.
 - For each, read the issue file. Include in queue if:
   - The file's first non-empty line starts with `go` (case-insensitive), AND
   - The file does NOT contain a `Mode: direct` line.
@@ -78,7 +86,7 @@ If you also need a dashboard / Jira sync / sweep, run `/status` after VPN is res
 - Queue is `[<TARGET>]`.
 - If `<TARGET>` has `Mode: direct`, abort with:
   ```
-  <TARGET> is Mode: direct. Use /here <TARGET> or remove the lock first.
+  <TARGET> is Mode: direct. Use /direct <TARGET> or remove the lock first.
   ```
   Do not dispatch.
 
@@ -112,7 +120,7 @@ For each queued item in order:
 
 3. **Outbound Jira transition (ticketed items only, when dispatching a development subagent — best-effort):**
    - Check the local `Jira Status:` field (last written by `/status`). If already `In Development` (case-insensitive), skip the transition silently.
-   - Otherwise, call `mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue` with `cloudId: 19ff5866-fc24-4369-81c2-4b8de43058a3`, `issueIdOrKey: <KEY>`.
+   - Otherwise, call `mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue` with `cloudId: <CloudId>`, `issueIdOrKey: <KEY>`.
    - Find a transition whose target name is `In Development` (case-insensitive).
    - If found, call `mcp__plugin_atlassian_atlassian__transitionJiraIssue` with the transition ID.
    - On any error (network, auth, transition not found): log to summary as `[<KEY>] Jira transition skipped: <reason>.` Continue with dispatch — Atlassian failures do NOT block dev work.
@@ -155,7 +163,7 @@ If you've been working for a while and want to see the bigger picture, run `/sta
 
 ## Notes
 
-- The TFS probe is the only hard prerequisite. Atlassian failures during dispatch are tolerated and logged.
-- `/work` is offline-tolerant when only Atlassian is unreachable (TFS still required for git ops).
+- The on-prem VPN probe is the only hard prerequisite. Atlassian failures during dispatch are tolerated and logged.
+- `/work` is offline-tolerant when only Atlassian is unreachable (on-prem git still required for repo operations).
 - All Atlassian MCP tools remain available in `allowed-tools` for ad-hoc lookups or one-off debugging, even though the default flow doesn't use the read tools.
-- In targeted mode, argument resolution runs BEFORE Phase 0 — argument errors don't waste a TFS probe.
+- In targeted mode, argument resolution runs BEFORE Phase 0 — argument errors don't waste a VPN probe.
