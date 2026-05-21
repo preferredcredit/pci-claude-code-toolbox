@@ -13,14 +13,9 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 Run a discovery + housekeeping pass over `<workspace>\Active\`. Idempotent — re-runs cheaply. Owns all writes to the `Jira Status:` field on local issue files. Does NOT dispatch any work (`/work` does that).
 
-## Two-field status model
+## Status fields
 
-Each ticketed issue file carries two distinct fields:
-
-- **`Status:`** — local workflow state. Owned by Claude and the user. `/status` never touches it.
-- **`Jira Status:`** — verbatim Jira ticket status. Owned by `/status` (this skill is the only writer). Refreshed in Phase 2.
-
-Adhoc items only have `Status:`. No `Jira Status:` line.
+See workflow.md > "Two-Field Status Model" for canonical definitions. Short version: `Status:` is the local workflow state owned by Claude and the user — `/status` never touches it. `Jira Status:` is the Jira mirror, owned by this skill (the only writer); refreshed in Phase 2. Adhoc items only carry `Status:`.
 
 ## Configuration
 

@@ -13,14 +13,9 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 Process `go`-flagged items in `<workspace>\Active\`. Lightweight, local-first — no Jira sync, no dashboard, no sweep. For the full discovery + housekeeping pass, use `/status`.
 
-## Two-field status model
+## Status fields
 
-Issue files carry two distinct fields:
-
-- **`Status:`** — local workflow state. `/work` reads it to decide what to dispatch; `/work` never overwrites it.
-- **`Jira Status:`** — verbatim Jira ticket status, last written by `/status`. `/work` treats this as read-only and trusts it (does not re-pull during a run). Used to decide whether to issue an "In Development" transition during dispatch.
-
-Adhoc items (kebab-case directories, no `Jira:` line) only have `Status:`.
+See workflow.md > "Two-Field Status Model" for canonical definitions. Short version: `Status:` is the local workflow state — `/work` reads it but never writes it. `Jira Status:` is the verbatim Jira mirror, last written by `/status`; `/work` trusts it without re-pulling. Adhoc items only carry `Status:`.
 
 ## Configuration
 
