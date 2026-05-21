@@ -45,19 +45,7 @@ and stop.
 
 ## Argument Resolution
 
-Resolve `<key-or-hint>` to a single `<TARGET>` BEFORE running Phase 1. Resolution order (first match wins):
-
-1. **Exact directory match** in `QA\Active\<arg>\` (case-insensitive).
-2. **Upper-cased Jira-key match against `QA\Active\`**: if `<arg>` matches `^[a-zA-Z]+-\d+$`, upper-case it and try as an exact directory match.
-3. **Exact directory match in `Active\<arg>\`** (the issue folder, case-insensitive) — handles the first-QA-run-for-a-ticket case.
-4. **Upper-cased Jira-key match against `Active\`**.
-5. **Substring match** (case-insensitive) across both `QA\Active\` and `Active\` directory names. Combine candidates from both trees.
-
-Outcomes:
-
-- **Zero matches** — print `No item matches '<arg>'.` and stop.
-- **Multiple matches** — print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
-- **One match** — store the resolved name as `<TARGET>` and proceed to Phase 1.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the **multi-root** variant — `/qa` searches both `<workspace>\QA\Active\` and `<workspace>\Active\` because the QA run folder can exist independently of the issue folder. Store the resolved name as `<TARGET>`. Resolution runs BEFORE Phase 1.
 
 ## Phases
 

@@ -41,17 +41,7 @@ Hardcoded in this skill:
 
 ## Argument resolution (targeted mode only)
 
-When an argument is provided, resolve it to a single `Active\<DIR>\` BEFORE running the VPN probe. Resolution order (first match wins):
-
-1. **Exact directory match** (case-insensitive): use Glob on `<workspace>\Active\<arg>\`.
-2. **Upper-cased Jira-key match**: if the argument matches `^[a-zA-Z]+-\d+$`, upper-case it and try as an exact match (`co-322` → `CO-322`).
-3. **Substring match**: case-insensitive substring against all `Active\` directory names.
-
-Outcomes:
-
-- **Zero matches** — print `No active item matches '<arg>'.` and stop.
-- **Multiple matches** — print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
-- **One match** — store the resolved directory name as `<TARGET>` and proceed.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies — `/work` uses the standard 3-step search and standard outcomes. Resolution runs BEFORE Phase 0 so argument errors don't waste a VPN probe.
 
 ## Phase 0: On-prem VPN probe
 

@@ -30,20 +30,7 @@ If the argument is missing, respond: `Usage: /direct <KEY-or-slug>` and stop.
 
 ## Resolution
 
-Resolve `<arg>` to a target directory:
-
-1. **Exact match:** if `Active\<arg>\` exists, use it as the target.
-2. **Upper-cased Jira-key match:** if `<arg>` matches `^[a-zA-Z]+-\d+$` and the upper-cased form exists in `Active\`, use it.
-3. **Substring match:** case-insensitive substring against `Active\` directory names.
-   - Zero matches: see step 4.
-   - One match: use it.
-   - Multiple matches: print `Multiple matches for '<arg>': <comma-separated list>. Be more specific.` and stop.
-
-4. **Auto-scaffold path (zero matches above):**
-   - If `<arg>` upper-cased matches `^[A-Z]+-\d+$` (looks like a Jira key): run `/jira-import <UPPER-ARG>`. After import succeeds, set the target to the newly created `Active\<UPPER-ARG>\` directory. If import fails (Jira API error, issue not found), print the failure and stop.
-   - Otherwise (looks like an adhoc slug): print `Adhoc slug '<arg>' doesn't exist. Create it first with /adhoc <slug> "<title>".` and stop.
-
-Store the resolved directory name as `<TARGET>`.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` PLUS the **auto-scaffold fallback** variant — on zero matches, /direct may create the target rather than erroring. Store the resolved directory name as `<TARGET>`.
 
 ## Phase 0: VPN check (ticketed items only)
 

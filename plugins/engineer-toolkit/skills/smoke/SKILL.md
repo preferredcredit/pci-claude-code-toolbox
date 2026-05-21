@@ -50,16 +50,7 @@ and stop.
 
 ## Argument Resolution
 
-Resolve to a single `<TARGET>` BEFORE running Phase 0:
-
-1. Exact directory match in `Active\<arg>\` (case-insensitive).
-2. Upper-cased Jira-key match against `Active\` if `<arg>` matches `^[a-zA-Z]+-\d+$`.
-3. Substring match (case-insensitive) across `Active\` directory names.
-
-Outcomes:
-- Zero matches → `No item matches '<arg>'.` and stop.
-- Multiple matches → `Multiple matches for '<arg>': <list>. Be more specific.` and stop.
-- One match → store as `<TARGET>`, proceed.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies. Resolution runs BEFORE Phase 0.
 
 ## Phases
 
