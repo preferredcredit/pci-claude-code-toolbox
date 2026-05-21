@@ -45,7 +45,7 @@ Windows paths use forward slashes after the scheme: `vscode://file/C:/ClaudeWork
 
 ## Jira Transitions
 
-Workflow skills (`/work`, `/direct`) discover Jira transitions dynamically: call `getTransitionsForJiraIssue` first, then match by the transition's target status **name** (e.g. "In Development"). Status IDs and transition IDs are never cached here — they vary by project and Jira admins can reshape workflows at any time. New projects work automatically without template edits.
+Workflow skills (`/work`, `/status`, `/direct`) discover Jira transitions and statuses dynamically: call `getTransitionsForJiraIssue` first, then match by the transition's target status **name** (e.g. "In Development"). Status IDs and transition IDs are never cached here — they vary by project and Jira admins can reshape workflows at any time. New projects work automatically without template edits.
 
 **Legacy `NGU-###` keys:** Old keys now resolve server-side to `CRD-###` (e.g. `NGU-232` → `CRD-232`). Issue folders under `Active\` / `Complete\` named `NGU-###` are historical.
 
@@ -124,7 +124,7 @@ Branch: [link]
 PR: [link]
 Blocked:
 Jira: <Jira site>/browse/<KEY>-###
-Jira Status: [verbatim Jira status name, refreshed by /work Phase 2]
+Jira Status: [verbatim Jira status name, refreshed by /status]
 
 ## Discussion
 _(Newest first - format: [agent] message)_
@@ -157,13 +157,13 @@ Local issue files have **two** status fields with very different ownership:
 
 | Field | Owner | What it represents |
 |-------|-------|--------------------|
-| `Status:` | Claude / orchestrator / user (local) | Where the work is in the **local** workflow — drives what `/work` does next |
-| `Jira Status:` | `/work` Phase 2 (read-only mirror of Jira) | The current Jira ticket status, refreshed every `/work` run |
+| `Status:` | Claude / orchestrator / user (local) | Where the work is in the **local** workflow — drives what `/work` dispatches and what `/status` shows |
+| `Jira Status:` | `/status` (read-only mirror of Jira) | The current Jira ticket status, refreshed every `/status` run |
 
-**Why two fields:** "Code Review" locally means "agent finished, PR is up, awaiting human review." Jira's "Code Review" status is a separate, formal stage the user transitions manually after merging. These cadences naturally diverge — local progresses faster — and conflating them caused the local field to oscillate every time `/work` ran. The two fields are now decoupled.
+**Why two fields:** "Code Review" locally means "agent finished, PR is up, awaiting human review." Jira's "Code Review" status is a separate, formal stage the user transitions manually after merging. These cadences naturally diverge — local progresses faster — and conflating them caused the local field to oscillate every sync run. The two fields are now decoupled.
 
 **Rules:**
-- Only Phase 2 of `/work` writes `Jira Status:`. Nothing else touches it.
+- Only `/status` writes `Jira Status:`. Nothing else touches it.
 - `Status:` is owned by whoever is currently driving the work (planning agent, dev agent, user). `/work` reads it to decide what to dispatch but never overwrites it from Jira.
 - The dashboard shows both side by side; mismatch is normal (e.g., local `Code Review`, Jira `In Development` while the user reviews the PR before transitioning Jira).
 - Sweep (move to `Complete\`) triggers on either: local `Status: Complete`, OR `Jira Status: Complete` / `Development Complete`. Either source declaring "done" removes it from `Active\`.
@@ -174,8 +174,8 @@ Local issue files have **two** status fields with very different ownership:
 
 ### Local `Status:` values (the ones Claude/`/work` cares about)
 
-| Status | Meaning | `/work` Phase 5 action |
-|--------|---------|------------------------|
+| Status | Meaning | `/work` action |
+|--------|---------|----------------|
 | Planning | Claude researching/designing | Dispatch planning subagent |
 | Development | Claude coding (branch exists) | Resume dev subagent |
 | Code Review | PR created, waiting for human review | None (skip with warning if `go` set) |
@@ -194,7 +194,8 @@ The Jira-driven workflow has phases (Setup → Triage → Spec → Plan → Exec
 
 | Want to know... | Read the skill |
 |---|---|
-| Full work-loop pass (VPN check, Jira sync, sweep, dashboard, dispatch) | `/work` |
+| Process `go`-flagged items or force-dispatch a single named item | `/work` |
+| Discovery + housekeeping pass (refresh PlanningWorkspace, sync Jira Status, sweep, dashboard, suggest next work) | `/status` |
 | Interactive in-chat phase walk for a single issue + `Mode: direct` semantics | `/direct` |
 | Workspace bootstrap, prereq check, scaffold flow | `/workspace-init` |
 | Issue scaffolding from a Jira key or a free-form description | `/jira-import`, `/adhoc` |
@@ -206,7 +207,7 @@ The Jira-driven workflow has phases (Setup → Triage → Spec → Plan → Exec
 | Independent reviewer pass on someone else's PR | `/reviewer-check` |
 | Delta re-review after author addresses prior feedback | `/rereview` |
 
-This template intentionally does NOT duplicate phase-by-phase content. If `/work` Phase 5 behaviour changes, the skill body changes — and this section keeps pointing at it instead of going stale.
+This template intentionally does NOT duplicate phase-by-phase content. If `/work` or `/status` behaviour changes, the skill body changes — and this section keeps pointing at it instead of going stale.
 
 ## Git Conventions
 
@@ -248,8 +249,8 @@ Work that doesn't have a Jira ticket — investigations, debugging spikes, cross
 
 **Differences from ticketed work:**
 - No `Jira:` or `Jira Status:` lines in the file (the absence of `Jira:` is the marker that distinguishes the two).
-- `/work` skips Phase 2 (sync) for adhoc items; only local `Status:` exists.
-- `/work` Phase 3 sweep moves adhoc items to `Complete\` only when local `Status:` = `Complete`.
+- `/status` skips Jira sync for adhoc items (no `Jira:` line to sync); only local `Status:` exists.
+- `/status` sweep moves adhoc items to `Complete\` only when local `Status:` = `Complete`.
 - No automatic Jira transition during dev work.
 - `Tier:` and `Mode:` fields work identically to ticketed items — `Tier:` set during Triage, `Mode: direct` written only by `/direct`.
 - `/direct <slug>` does NOT auto-scaffold for adhoc — the slug must already exist (created via `/adhoc`). Adhoc creation is a deliberate act, unlike ticketed where the Jira key already exists upstream.

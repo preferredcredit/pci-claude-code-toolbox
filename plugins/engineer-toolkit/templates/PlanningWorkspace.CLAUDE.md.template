@@ -2,7 +2,7 @@
 
 `<workspace>` below refers to the Workspace path from `## Configuration` in the parent `CLAUDE.md`.
 
-This folder holds shared, read-only clones of all repos referenced by the dev workflow. It is updated before planning phases by `/work` Phase 1.
+This folder holds shared, read-only clones of all repos referenced by the dev workflow. It is refreshed by `/status` (Phase 1).
 
 **Rules:**
 - READ ONLY — never modify files in this folder

@@ -181,7 +181,7 @@ Match user intent, not exact phrasing. The strings below are illustrative — cl
 | User intent | Example phrases | Action |
 |---|---|---|
 | **Park for async** | "park it", "hand off", "let /work pick it up", "save for later", "come back to this tomorrow", "punt" | Remove `Mode: direct` line. Re-add `go` line at top. Discussion entry: `[orchestrator] Direct session paused. Re-flagged for /work.` Status unchanged. |
-| **Mark complete** | "we're done", "mark complete", "ship it", "all set" | Set `Status: Complete`. Remove `Mode: direct` line. Discussion entry: `[orchestrator] Marked complete. Sweep on next /work.` |
+| **Mark complete** | "we're done", "mark complete", "ship it", "all set" | Set `Status: Complete`. Remove `Mode: direct` line. Discussion entry: `[orchestrator] Marked complete. Sweep on next /status.` |
 | **Chat ends, no exit signal** | (silent) | Do nothing. File stays `Mode: direct`. Next `/direct <TARGET>` resumes; `/work` skips. |
 
 ## Notes

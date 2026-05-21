@@ -243,7 +243,8 @@ Created:
 Next steps:
   /jira-import <KEY>       Import a Jira ticket to start ticketed work
   /adhoc <slug> "<title>"  Start an unticketed work item
-  /work                    Run a work-loop pass once you have items
+  /work                    Dispatch go-flagged items (queue runner)
+  /status                  Refresh Jira, sweep, dashboard, suggest next work
 ```
 
 ### Refresh
