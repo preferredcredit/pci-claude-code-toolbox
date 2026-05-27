@@ -92,6 +92,26 @@ Mirrors the conversational shape → confirm → create flow from the global Cre
 
 3. **Create.** Call `mcp__...__createJiraIssue` with `contentFormat: "adf"` and the field payload below. Then verify the response.
 
+4. **Link the dev ticket.** If the CAB is deploying work from a CRD/CO/NGO/etc. ticket, add a "Relates" link from the new CHANGE issue to the dev ticket. See "Linking the dev ticket" below.
+
+## Linking the dev ticket
+
+When the CAB is deploying or implementing work from a dev ticket (CRD-###, CO-###, NGO-###, etc.), link them with a **Relates** issue link. This is the team-wide convention — confirmed across 26 of 26 dev-ticket references on recent CHANGE tickets. Parent/sub-issue relationships are **not** used for CHANGE → dev.
+
+```
+mcp__...__createIssueLink(
+  cloudId: "<CloudId>",
+  type: "1Relates",   # local instance's name for "Relates" (id 10003); leading "1" is a picker-sort hack
+  inwardIssue:  "CO-424",         # the dev ticket
+  outwardIssue: "CHANGE-10655"    # the new CHANGE ticket
+)
+```
+
+Notes:
+- "Relates" is symmetric, so the choice of inward vs outward is cosmetic.
+- The link type's name in this instance is `1Relates`, not `Relates`. Either passes validation since the MCP wrapper matches case-insensitively, but `1Relates` matches what shows up in the UI.
+- Mentioning the dev ticket only as a hyperlink inside the Change Description does **not** count — add the formal link.
+
 ## ADF examples
 
 The literal JSON — working example payload, minimum-viable doc, and node-type cheat sheet (heading, paragraph, link, inline code, bullet list) — lives in [references/adf-examples.md](../../references/adf-examples.md). Pull that in when actually composing the request body. Same shape applies to `editJiraIssue` under `fields:` instead of `additional_fields:`.
@@ -106,6 +126,7 @@ The literal JSON — working example payload, minimum-viable doc, and node-type 
 | Passing `null` to clear `description` | Error: `Expected an ADF document` | Pass empty doc: `{"type":"doc","version":1,"content":[]}` |
 | Passing markdown body via `description` field on edit | Same convert error if `contentFormat: "adf"` is set | Either send ADF doc OR drop `contentFormat` and send markdown — but not mixed |
 | Forgetting Approver | Ticket sits without approval sub-task progressing | Set `customfield_10107` if known; otherwise note and continue |
+| Skipping the Relates link to the dev ticket | CAB has no formal trace to the work it deploys | Add `createIssueLink` of type `1Relates` between CHANGE and the dev ticket — see "Linking the dev ticket" |
 
 ## When You Need a Field Not Listed Here
 
