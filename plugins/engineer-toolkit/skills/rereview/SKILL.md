@@ -101,6 +101,7 @@ Judgment rules — read these before assigning statuses:
 - **Don't trust thread status alone.** A thread marked `fixed` (Resolved) without a code change AND without an explanatory reply should still be `still-present`. Resolution is metadata; the conversation and the code are the evidence.
 - **Be charitable to human explanations but not credulous.** If a reply says "this is fine because X" and X is verifiable in the code, accept it. If X is hand-wavy or contradicted by the code, downgrade to `still-present` with a note "author response acknowledged but issue remains because…".
 - **If the file:line was deleted/moved**, the original finding may be stale. Look for the same issue at the new location before declaring it `addressed`.
+- **If a prior finding's file is NOT in the FULL PR DIFF at all**, the code that triggered the finding is no longer part of what this PR is changing. Mark the finding as `superseded` (or `addressed` if you can see in the delta diff that it was removed) with a rationale noting "file no longer in PR diff — code path removed from PR scope or never actually changed by this PR." Do NOT keep it as `still-present` (there's nothing to be still present in), and do NOT regenerate it as a `kind: "missed"` finding (see Step 4 hard constraint).
 - **Severity downgrade rules**: an `acknowledged-wontfix` finding stays in the report but its severity drops (Critical → Warning, Warning → Suggestion). Don't keep a Critical alive against a convincing intentional-design reply.
 
 How to weight each ADOS thread status:
@@ -131,6 +132,18 @@ Be especially careful with `missed` findings:
 
 - Distinguish "the original reviewer chose not to flag this" (intentional, e.g., handled by analyzers) from "the original reviewer didn't notice this" (genuine miss). When in doubt, lean toward flagging — a downstream human can dismiss it, but a silent skip can't be recovered.
 - Apply the standard "What NOT to Flag" filter at the bottom of this file. Style preferences, tool-handled formatting, and theoretical concerns don't qualify as `missed` findings just because the original review didn't enumerate them.
+
+**HARD CONSTRAINT — every finding must cite a file present in the supplied diffs:**
+
+This is the most common failure mode in pipeline recheck mode: the model sees prior findings that reference files no longer in the PR, and "helpfully" regenerates them as `kind: "missed"` against those files — even though those files are not in the current PR diff and the model cannot see their actual contents. Those findings are hallucinations: confidently-stated file:line citations about code the model has no current view of.
+
+To prevent this:
+
+- For `kind: "new"`: the `file` field MUST appear in the **DELTA DIFF** (look for `+++ b/<path>` or `--- a/<path>` lines in the supplied delta diff text).
+- For `kind: "missed"`: the `file` field MUST appear in the **FULL PR DIFF** (same check, against the full PR diff text).
+- If a file or code path is not in either supplied diff, you cannot see its actual content. Do NOT fabricate findings about it — even if a prior finding referenced that file, even if its name suggests issues, even if your training suggests common bugs in that kind of code. Findings about code you cannot directly observe in the supplied diffs are hallucinations and must be dropped, not emitted.
+- Before emitting any finding, perform this self-check: "Can I quote the exact added/changed lines being flagged from the supplied diff text?" If the answer is no, drop the finding. Don't soften it, don't downgrade severity, don't add a hedging note — drop it entirely.
+- When a prior finding references a file that's no longer in the diff (because the PR scope changed, code was reverted, or the file was never actually changed by this PR), the right place to handle it is in `prior_findings_status` with status `superseded` or `addressed` — NOT as a regenerated `missed` finding.
 
 Apply the standard Review Priorities (correctness, risk, security, maintainability, architecture, style — in that order) for both `new` and `missed` findings.
 
@@ -297,6 +310,7 @@ Field rules:
 - `prior_findings_status[].rationale` — one to two sentences explaining the status decision; cited evidence if possible.
 - `prior_findings_status[].source` (optional) — `"ai"` if the prior finding came from a `findings-v1` JSON marker, `"human"` if it came from a reviewer's inline comment. Helpful when a PR has both kinds and you need to tell at a glance.
 - `new_findings[].kind` — required. Either `"new"` (introduced by changes since the prior review, found in the delta) or `"missed"` (existed in the PR all along but was NOT flagged by the prior review). The pipeline uses this distinction to surface "the original review missed something" prominently to reviewers.
+- `new_findings[].file` — required. MUST be a path that appears in one of the supplied diffs (the DELTA DIFF for `"new"`, the FULL PR DIFF for `"missed"`). The pipeline cross-references this; findings citing files absent from the diff are evidence of hallucination and must not be emitted (see Step 4 hard constraint).
 - `new_findings` (other fields) — same schema as `findings-v1` from author-review (file, line, severity, title, message). Include only findings with a clear file reference.
 
 Consistency rules:
