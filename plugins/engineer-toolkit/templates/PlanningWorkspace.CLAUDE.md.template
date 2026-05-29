@@ -1,0 +1,53 @@
+# PlanningWorkspace - Repository Reference
+
+`<workspace>` below refers to the Workspace path from `## Configuration` in the parent `CLAUDE.md`.
+
+This folder holds shared, read-only clones of all repos referenced by the dev workflow. It is refreshed by `/status` (Phase 1).
+
+**Rules:**
+- READ ONLY — never modify files in this folder
+- Never switch branches
+- Never commit or push
+- Always on the `main` branch
+
+**Update command (run before planning):**
+```bash
+cd <workspace>/PlanningWorkspace
+for dir in */; do (cd "$dir" && git fetch origin && git reset --hard origin/main); done
+```
+
+## Quick Reference: Which Repo?
+
+| Task | Repo | Start Here |
+|------|------|------------|
+| Add API endpoint | NextGenOrig | Find existing endpoint in same feature area |
+| Add database query | NextGenOrig | Find existing DataProvider in same feature |
+| Add UI page/component | Gateway.Web / CustomerEngagement.Web / ClientPortal.Sidecar.Web | Find similar page in `Features/` folder |
+| Add HTTP client method | NextGenOrig (defines), Blazor apps (consume) | Find existing method in `ApiHttpClient` |
+
+## Repositories
+
+| Repo | Clone URL | Purpose |
+|------|-----------|---------|
+| NextGenOrig | `https://tfs.preferredcredit.net/DefaultCollection/EngineeringHub/_git/NextGenOrig` | API backend (.NET 9, FastEndpoints, EF Core) |
+| Gateway.Web | `https://tfs.preferredcredit.net/DefaultCollection/Gateway/_git/Gateway.Web` | Internal portal (.NET 9, Blazor, MudBlazor) |
+| CustomerEngagement.Web | `https://tfs.preferredcredit.net/DefaultCollection/Customer%20Engagement/_git/CustomerEngagement.Web` | Customer-facing app (.NET 9, Blazor, MudBlazor) |
+| ClientPortal.Sidecar.Web | `https://tfs.preferredcredit.net/DefaultCollection/PCIClientPortal/_git/ClientPortal.Sidecar.Web` | Client portal (.NET 9, Blazor, MudBlazor) |
+| Origination | `https://tfs.preferredcredit.net/DefaultCollection/Origination/_git/Origination` | Origination backend (NServiceBus sagas, endpoints, message handlers) |
+
+These URLs assume PCI's TFS host — adjust them if you're hosting elsewhere.
+
+## NuGet Dependencies
+
+Packages come from remote feeds only. No local package workflow.
+
+If work requires NuGet package changes:
+1. Document in Discussion
+2. Wait for package publish
+3. Update references and continue
+
+**UI Stubbing:** If UI depends on pending package changes, create stubs marked with `// TODO: Remove stub when [PackageName] published`. Don't stub if it isn't necessary.
+
+## Coding patterns
+
+This template doesn't ship coding-pattern rules — teams and individual engineers manage those themselves. If you want path-scoped coding rules in this workspace, drop your own files into `<workspace>\.claude\rules\` (see https://code.claude.com/docs/en/memory#path-specific-rules for the `paths:` frontmatter format).

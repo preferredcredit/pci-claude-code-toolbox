@@ -2,8 +2,7 @@
 name: author-review
 description: Run an author self-review before creating a PR at PCI. Gathers context, assesses complexity, runs specialized agents, and produces a structured review summary for the PR description.
 argument-hint: "[PR link or branch name]"
-disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, Task
 ---
 
 # Author Self-Review
@@ -37,7 +36,7 @@ Ask the user for the following information. Wait for answers before proceeding.
 
 ## Step 2: Gather the Diff
 
-> **Skip-if pipeline mode**: The diff is already supplied in the invocation. The git/`gh` sub-steps and the "Read all changed files" sub-step do not apply — analyze the diff content as-is.
+> **Skip-if pipeline mode**: The diff is already supplied in the invocation. The git sub-steps and the "Read all changed files" sub-step do not apply — analyze the diff content as-is.
 
 Once context is provided:
 
@@ -45,7 +44,7 @@ Once context is provided:
    - `git diff main...HEAD --stat` to see changed files
    - `git diff main...HEAD` to get the full diff
    - `git log main..HEAD --oneline` to understand the commits
-2. If a PR link was given, use `gh pr diff <number>` to get the diff
+2. If only a PR link was given, ask the user to paste the diff or check out the branch locally — `gh` is not available at PCI (Azure DevOps on-prem). See workflow doctrine "No GitHub CLI".
 3. If the user pasted a diff, work from that directly
 
 Read all changed files in full to understand context around the changes.

@@ -25,7 +25,7 @@ Ask the user for the following information. Wait for answers before proceeding.
 
 Once context is provided:
 
-1. If a PR link was given, use `gh pr diff <number>` and `gh pr view <number>` to get the diff and PR description
+1. If only a PR link was given, ask the user to paste the diff and PR description, or to check out the branch locally so you can run `git diff` against it — `gh` is not available at PCI (Azure DevOps on-prem). See workflow doctrine "No GitHub CLI".
 2. If a branch was given, run:
    - `git diff main...HEAD --stat` to see changed files
    - `git diff main...HEAD` to get the full diff

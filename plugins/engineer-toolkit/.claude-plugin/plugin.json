@@ -1,12 +1,12 @@
 {
   "name": "engineer-toolkit",
-  "description": "Engineering toolkit for code review, architecture analysis, and development workflows",
-  "version": "1.6.0",
+  "description": "PCI engineer's daily-driver toolkit: Jira-driven dev workflow (work, status, direct, adhoc, smoke, qa) plus code review and architecture analysis",
+  "version": "2.2.0",
   "author": {
     "name": "PCI"
   },
   "homepage": "https://github.com/preferredcredit/pci-claude-code-toolbox",
   "repository": "https://github.com/preferredcredit/pci-claude-code-toolbox",
   "license": "MIT",
-  "keywords": ["code-review", "architecture", "engineering", "dotnet", "security"]
+  "keywords": ["code-review", "architecture", "engineering", "dotnet", "security", "workflow", "jira", "qa", "dev-loop"]
 }

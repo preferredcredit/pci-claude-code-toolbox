@@ -1,109 +1,137 @@
-# Engineer Toolkit Plugin
+# Engineer Toolkit
 
-Claude Code plugin providing engineering tools for code review, architecture analysis, and development workflows.
+The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 
-## Features
+- **Workflow** — Jira-driven dev loop: triage, plan, execute, smoke, QA. Day-to-day driver.
+- **Review** — Pre/post-PR code & architecture review agents. Run on demand.
 
-### Agents
+## Quick start (workflow surface)
 
-This plugin includes 2 specialized agents for .NET development workflows:
+1. **Install** — `/plugin marketplace add preferredcredit/pci-claude-code-toolbox`, then install `engineer-toolkit@pci-toolbox`.
+2. **Bootstrap your workspace** — Run `/workspace-init`. Checks prerequisites, prompts for your workspace path and Jira account ID, scaffolds the folder structure.
+3. **Start working** — `/jira-import <KEY>` for ticketed work, or `/adhoc <slug> "<title>"` for unticketed investigations. Then `/status` to refresh the dashboard, or `/work` to dispatch anything ready.
 
-#### code-reviewer
-Code quality reviewer for bugs, security issues, and performance problems. Provides structured feedback without modifying code.
+## Skills
 
-- **Model**: sonnet
-- **Capabilities**: Read, Grep, Glob, Bash (read-only)
-- **Use for**: Code review, security analysis, quality checks
+### Workflow
 
-#### architect-review
-Architecture review specialist for design decisions, system boundaries, and technical strategy. Creates Mermaid diagrams and assesses cost of change.
+| Command | What it does |
+|---|---|
+| `/workspace-init` | Bootstrap or refresh the workspace (folders + CLAUDE.md). Checks plugin prereqs and CLI tools (git, dotnet). Re-run to refresh templates; existing local edits are detected and confirmed before overwrite. |
+| `/work` | Queue runner — process `go`-flagged items (or one named item via `/work <key-or-hint>`). Local-first, fast. Requires VPN to TFS for git ops; Jira transitions during dispatch are best-effort. |
+| `/status` | Discovery + housekeeping — refresh PlanningWorkspace, sync Jira Status onto local files, sweep completed items, print the dashboard (chat + HTML), suggest next work, surface unimported Jira tickets. No dispatch. Requires VPN to Atlassian. |
+| `/direct <KEY>` | Open a direct/interactive session in the current chat for a single ticket. Locks the issue from `/work`. |
+| `/adhoc <slug> "<title>"` | Create a new unticketed work item using a kebab-case slug. |
+| `/jira-import <KEY>` | Pull a Jira ticket into a local `Active\<KEY>\` folder. |
+| `/smoke <KEY>` | Run a local Playwright walk-through of the ticket's acceptance criteria against your dev branch. |
+| `/qa <KEY> <env>` | End-to-end QA verification across the multi-app ecosystem (dev / qa / staging). |
+| `/create-change-issue` | Shape and create a CAB ticket in the CHANGE Jira project. |
 
-- **Model**: opus
-- **Capabilities**: Read, Grep, Glob, Write (no code editing)
-- **Use for**: Architectural decisions, design reviews, cost-of-change assessment
+### Review
 
-### Skills
+| Command | What it does |
+|---|---|
+| `/author-review` | Pre-PR self-review. Gathers context, assesses complexity, runs `code-reviewer` (always) and `architect-review` (complex only), produces a structured summary for the PR description. |
+| `/reviewer-check` | Independent reviewer pass on someone else's PR. Validates the author's review and surfaces missed issues. Output goes in a PR comment. |
 
-User-invoked workflows for code review:
+## Agents
 
-#### /author-review
-Run an author self-review before creating a PR. Gathers context, assesses complexity, runs specialized agents, and produces a structured review summary.
+- **code-reviewer** (Sonnet) — Bugs, security, performance, maintainability. Read-only.
+- **architect-review** (Opus) — Design decisions, system boundaries, cost-of-change. Read-only with Mermaid diagrams.
+- **playwright-driver** (Sonnet) — Headless Playwright driver. Walks a fixed plan against a running web app, tails logs, returns a verdict. Dispatched by /smoke today; designed to be reusable by any orchestrator that can supply the documented inputs.
+
+## Prerequisites
+
+**Required (must be installed and enabled):**
+
+| Plugin | Marketplace |
+|---|---|
+| `superpowers` | claude-plugins-official |
+| `atlassian` | claude-plugins-official |
+| `playwright` | claude-plugins-official |
+
+**Optional but recommended:**
+
+| Plugin | Marketplace |
+|---|---|
+| `csharp-lsp` | claude-plugins-official |
+| `claude-md-management` | claude-plugins-official |
+
+`/workspace-init` checks all of these at startup.
+
+## Workspace layout
+
+After `/workspace-init`, your workspace looks like:
 
 ```
-/author-review
+<workspace>\
+├── CLAUDE.md                       ← your editable Configuration + one @import line
+├── .engineer-toolkit\              ← plugin-managed (refresh overwrites)
+│   ├── workflow.md                 ← workflow doctrine: critical rules, output format,
+│   │                                 issue file format, two-field status, etc.
+│   └── VERSION                     ← plugin version, plain text
+├── Active\                         ← work items currently in flight
+├── Complete\                       ← finished work (auto-swept here by /status)
+├── Archive\                        ← long-term storage (>30 days complete)
+└── PlanningWorkspace\              ← shared read-only clones of repos
+    └── CLAUDE.md
 ```
 
-- **Capabilities**: Read-only + Bash (Read, Grep, Glob, Bash)
-- **Workflow**: Gather context -> Diff -> Assess complexity -> Code review -> Architecture review (if complex) -> Synthesize
-- **Output**: AI Review Summary, Risk Score, Cost of Change, Key Findings — designed to copy into PR description
+`CLAUDE.md` imports the doctrine via Claude Code's `@filepath` syntax — at session start both files load into context as one merged document. You edit your `CLAUDE.md` freely; `refresh` only touches the `.engineer-toolkit\` folder.
 
-#### /reviewer-check
-Validate someone else's PR against the author's AI review. Runs an independent code quality pass and identifies missed issues.
+Path-scoped coding rules (`<workspace>\.claude\rules\*.md`) are not shipped by the plugin — drop your own there if you want them. See https://code.claude.com/docs/en/memory#path-specific-rules.
 
-```
-/reviewer-check
-```
+## Configuration
 
-- **Capabilities**: Read-only + Bash (Read, Grep, Glob, Bash)
-- **Workflow**: Gather context -> Diff -> Independent code-reviewer pass -> Validate author's review -> Verify AC -> Synthesize
-- **Output**: Reviewer AI Check with risk score validation, missed issues, blockers vs non-blockers — designed to add as PR comment
+User-specific values live in the workspace `CLAUDE.md` `## Configuration` block:
 
-## Installation
+- **Workspace path** — set during `/workspace-init`
+- **User Account ID** — your Jira account ID (auto-detected when possible)
+- **User Name** — your Jira display name
 
-```
-/plugin marketplace add preferredcredit/pci-claude-code-toolbox
-/plugin install engineer-toolkit@pci-toolbox
-```
+PCI-wide values (Jira CloudId, project keys) are also listed there for reference but should not need to change.
 
-## Usage
+## Updating
 
-### Author Workflow (before creating PR)
+After the plugin is updated (`/plugin` → Update), re-run `/workspace-init` and pick `refresh` to pull the latest workflow doctrine into `.engineer-toolkit\workflow.md`. Your `CLAUDE.md`, `Active\`, `Complete\`, `Archive\`, and `.claude\rules\` are never touched. If you're upgrading from a pre-split workspace (single-file CLAUDE.md), `/workspace-init` detects this and offers a one-time migration that backs up your old file.
 
-1. Run `/author-review`
-2. Provide context when asked (branch, Jira story, acceptance criteria, systems touched)
-3. Review the output
-4. Copy the **AI Review Summary** into your PR description
+## Review flows
 
-### Reviewer Workflow (when reviewing someone else's PR)
-
-1. Run `/reviewer-check`
-2. Provide the PR link and the author's AI Review Summary
-3. Review the output
-4. Add the **Reviewer AI Check** as a PR comment
-
-### How It Works
+### Author review (before opening a PR)
 
 ```
 /author-review
     |
-    +-- Gathers context (branch, story, AC)
-    +-- Reads the diff and changed files
-    +-- Assesses complexity (Simple vs Complex)
+    +-- Gather context (branch, story, AC)
+    +-- Read diff and changed files
+    +-- Assess complexity (Simple vs Complex)
     |
-    +-- Launches code-reviewer agent (Sonnet) --- always
+    +-- Launch code-reviewer (Sonnet) — always
     |   +-- Logic errors, security, performance, maintainability
     |
-    +-- Launches architect-review agent (Opus) --- complex changes only
+    +-- Launch architect-review (Opus) — complex only
     |   +-- Design decisions, cost of change, backward compatibility
     |
-    +-- Synthesizes findings into structured output
+    +-- Synthesize into structured output
 ```
+
+Output: AI Review Summary, Risk Score, Cost of Change, Key Findings — copy into the PR description.
+
+### Reviewer check (validating someone else's PR)
 
 ```
 /reviewer-check
     |
-    +-- Gathers context (PR, author's review)
-    +-- Reads the diff and changed files
+    +-- Gather context (PR, author's review)
+    +-- Read diff and changed files
     |
-    +-- Launches independent code-reviewer pass --- always
+    +-- Independent code-reviewer pass
     |   +-- Catches issues the author's review missed
     |
-    +-- Validates author's review
+    +-- Validate author's review
     |   +-- Risk score, cost of change, coverage
     |
-    +-- Produces Reviewer AI Check output
+    +-- Produce Reviewer AI Check output
 ```
 
-## Development
-
-Part of the PCI Claude Code Toolbox marketplace.
+Output: Reviewer AI Check — add as a PR comment.
