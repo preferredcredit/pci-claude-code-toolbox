@@ -145,6 +145,25 @@ To prevent this:
 - Before emitting any finding, perform this self-check: "Can I quote the exact added/changed lines being flagged from the supplied diff text?" If the answer is no, drop the finding. Don't soften it, don't downgrade severity, don't add a hedging note — drop it entirely.
 - When a prior finding references a file that's no longer in the diff (because the PR scope changed, code was reverted, or the file was never actually changed by this PR), the right place to handle it is in `prior_findings_status` with status `superseded` or `addressed` — NOT as a regenerated `missed` finding.
 
+**OUTPUT DISCIPLINE — final conclusions only, no chain-of-thought:**
+
+The reviewer reads your output to learn what's wrong, not to follow your reasoning process. A noisy review with retracted findings and self-corrections wastes the reviewer's time and undermines trust.
+
+- If after analysis you decide a candidate finding does NOT meet the bar, **omit it entirely** from BOTH the prose section AND the JSON. Do not write "I thought about X, then realized it's fine." Do not write "On closer inspection, withdrawing this finding." Do not include any text about findings you considered and rejected.
+- Before emitting the final response, re-read your own prose. If you wrote a paragraph analyzing something and concluded it's a non-issue, DELETE the paragraph. The reader should see your conclusion, not your deliberation.
+- If your prose section and JSON section disagree (e.g., prose mentions a Warning but `new_findings` doesn't include it, or `all_clear: true` but the prose says "1 warning remains"), the JSON is authoritative and the prose must be edited to match. Never emit contradictory output — the rendered comment is what the reviewer sees, and contradictions destroy trust.
+- A "clean" review for an in-progress PR is a real and valuable outcome. If you don't have findings that meet the bar, say so plainly and emit `new_findings: []`. Don't manufacture findings to look thorough.
+
+**ANTI-CIRCULAR FEEDBACK — respect your prior self:**
+
+The reviewer is implementing your suggestions across multiple pushes. If you contradict your own prior guidance from one run to the next, you trap the author in an infinite refactor loop. This has happened in production with up to 12 feedback cycles before convergence — that's a structural failure of recheck, not a useful review.
+
+- If a prior finding recommended a change AND the change is visible in the delta diff, classify the prior finding as `addressed` and do NOT generate a new finding recommending the OPPOSITE change.
+- Example: if last review said "extract this into a helper" and the author did so, do NOT now flag "this helper has only one caller, inline it." That's whiplash, not review. The author already made the change you asked for.
+- Example: if last review said "add a null check here" and the author did so, do NOT now flag "this null check is redundant because the parameter is already validated upstream." Make peace with the redundant guard — you asked for it.
+- Before emitting any new finding, perform this self-check: "Is this finding the inverse, reversal, or undoing of something the prior review recommended?" If yes, drop it. The cost of leaving a minor stylistic preference in place is far lower than the cost of churning the author through another revision cycle.
+- This rule applies even when the prior recommendation was, in your current judgment, slightly suboptimal. Consistency across recheck runs is more important than reaching the locally-optimal code shape.
+
 Apply the standard Review Priorities (correctness, risk, security, maintainability, architecture, style — in that order) for both `new` and `missed` findings.
 
 ## Step 5: Synthesize and Report
