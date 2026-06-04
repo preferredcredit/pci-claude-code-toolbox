@@ -36,57 +36,68 @@ Hardcoded in this skill:
 
 ## Argument resolution (targeted mode only)
 
-See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies — `/work` uses the standard 3-step search and standard outcomes. Resolution runs BEFORE Phase 0 so argument errors don't waste a VPN probe.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies — `/work` uses the standard 3-step search and standard outcomes. Resolution runs BEFORE the scan so argument errors don't waste a probe.
 
-## Phase 0: On-prem VPN probe
+## Phase 0 + 1: Scan (run the script)
 
 `/work` does NOT call Atlassian as a gate. Jira transitions during dispatch are best-effort. The only network dep that gates dispatch is the on-prem git server (needed for `git clone` / `git push`). Atlassian Cloud is public-internet and answers regardless of VPN state, so it's not a reliable VPN signal — `<vpn-host>` is.
 
-Run via Bash:
-```bash
-nslookup <vpn-host> 2>&1 | head -5
-```
-(substituting the actual value from `## Configuration`).
-
-If the output contains `can't find`, `NXDOMAIN`, `server can't find`, or the command exits non-zero, the on-prem DNS isn't resolving. Print exactly:
+The VPN probe and the Active-queue scan are mechanical and deterministic, so they live in a re-runnable script. Run it instead of doing these steps by hand, substituting `<workspace>` and `<vpn-host>` from `## Configuration`:
 
 ```
-VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /work.
+powershell -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/work/scan-queue.ps1" -Workspace "<workspace>" -VpnHost "<vpn-host>"
 ```
 
-(substituting the actual host) and stop.
+Targeted mode: after resolving `<arg>` to a single `<TARGET>` (see Argument resolution above), add `-Target <TARGET>`.
 
-If you also need a dashboard / Jira sync / sweep, run `/status` after VPN is restored.
+The script emits one JSON object:
 
-## Phase 1: Build queue
+```json
+{ "vpn": { "host": "...", "ok": true, "detail": "..." },
+  "workspace": "...", "target": "...",
+  "items": [ { "dir", "goFlagged", "modeDirect", "queued", "status", "priority", "tier", "ticketed" } ] }
+```
 
-**Full pass:**
-- Enumerate all `<workspace>\Active\*\` directories via Glob.
-- For each, read the issue file. Include in queue if:
-  - The file's first non-empty line starts with `go` (case-insensitive), AND
-  - The file does NOT contain a `Mode: direct` line.
-- Items with `Mode: direct` and a `go` line are skipped (log to summary as `Skipped (Mode: direct): ...`).
+`items` is pre-sorted by Priority (`High` > `Medium` > `Low`; missing/unrecognized → `Medium`) then directory name. Each item's `queued` is `true` when it is `go`-flagged AND not `Mode: direct`.
 
-**Targeted:**
-- Queue is `[<TARGET>]`.
-- If `<TARGET>` has `Mode: direct`, abort with:
-  ```
-  <TARGET> is Mode: direct. Use /direct <TARGET> or remove the lock first.
-  ```
-  Do not dispatch.
+**Re-runnable:** the script never modifies files and never dispatches. Run it again any time to re-check VPN + queue state (e.g. after connecting to VPN, or after editing a `go` flag).
 
-**Empty queue (full pass only):**
-- If the queue is empty, print exactly:
-  ```
-  Nothing queued. Run /status to check state.
-  ```
-  and exit without further output.
+### Act on the JSON
 
-## Phase 2: Sort
+1. **VPN gate.** If `vpn.ok` is `false`, print exactly (substituting the actual host) and stop:
+   ```
+   VPN check failed — <vpn-host> not resolving. Connect to VPN and re-run /work.
+   ```
+   (If you also need a dashboard / Jira sync / sweep, run `/status` after VPN is restored.)
 
-Sort the queue by Priority field (`High` > `Medium` > `Low`; missing or unrecognized → treat as `Medium`), then by directory name ascending. Targeted mode has only one item, so sorting is trivial.
+2. **Build the queue.**
+   - **Full pass:** the queue is every item with `queued == true`, in the order returned (already sorted). Items that are `goFlagged == true` AND `modeDirect == true` are skipped — collect their `dir`s for the `Skipped (Mode: direct): ...` summary line.
+   - **Targeted:** the queue is `[<TARGET>]`. If that item has `modeDirect == true`, abort with:
+     ```
+     <TARGET> is Mode: direct. Use /direct <TARGET> or remove the lock first.
+     ```
+     Do not dispatch.
+
+3. **Empty queue (full pass only).** If no item has `queued == true`, print exactly and exit without further output:
+   ```
+   Nothing queued. Run /status to check state.
+   ```
+
+The queue is already sorted by the script (Priority then directory name), so there is no separate sort step. Targeted mode has only one item.
 
 ## Phase 3: Process each item
+
+**Always pull latest before planning or working — no exceptions.** Before dispatching ANY subagent (planning OR development) for a queued item, refresh the repo it will touch to `origin/main`:
+
+- **Planning dispatch** (Triage / Standard / Full): the planning subagent reads from `<workspace>\PlanningWorkspace`, which `/work` does not sweep wholesale. Refresh just the repo(s) relevant to this item before designing:
+  ```
+  git -C "<workspace>\PlanningWorkspace\<repo>" fetch origin
+  git -C "<workspace>\PlanningWorkspace\<repo>" reset --hard origin/main
+  ```
+  Designing against a stale tree has already caused wasted work on already-merged fixes.
+- **Development dispatch:** if `AgentWorkspace\` already exists, pull `fb/<KEY>` and merge `origin/main` before resuming (`git fetch origin` then `git merge origin/main`). A freshly created shallow clone is already current.
+
+This rule is not satisfied by "the clone looks recent" — resumed branches and shared planning trees drift. Refresh, then dispatch.
 
 For each queued item in order:
 
@@ -138,7 +149,7 @@ In targeted mode, the summary covers only `<TARGET>`.
 
 ## What `/work` does NOT do (use `/status` for these)
 
-- Refresh `PlanningWorkspace`.
+- Refresh **all** of `PlanningWorkspace` (the workspace-wide `git reset --hard` sweep). `/work` does a *targeted* single-repo refresh per queued item before planning (see Phase 3), but the full sweep stays in `/status`.
 - Sync `Jira Status:` field on local files.
 - Sweep `Active\` items to `Complete\`.
 - Print the dashboard or write `dashboard.html`.
@@ -148,7 +159,8 @@ If you've been working for a while and want to see the bigger picture, run `/sta
 
 ## Notes
 
+- Phase 0 + 1 run via `scan-queue.ps1` (VPN probe + queue scan). Re-run it any time to re-check state without dispatching.
 - The on-prem VPN probe is the only hard prerequisite. Atlassian failures during dispatch are tolerated and logged.
 - `/work` is offline-tolerant when only Atlassian is unreachable (on-prem git still required for repo operations).
 - All Atlassian MCP tools remain available in `allowed-tools` for ad-hoc lookups or one-off debugging, even though the default flow doesn't use the read tools.
-- In targeted mode, argument resolution runs BEFORE Phase 0 — argument errors don't waste a VPN probe.
+- In targeted mode, argument resolution runs BEFORE the scan — argument errors don't waste a probe.
