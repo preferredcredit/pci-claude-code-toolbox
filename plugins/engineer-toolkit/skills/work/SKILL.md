@@ -4,7 +4,7 @@ description: Process go-flagged items in <workspace>\Active\, or force-dispatch 
 argument-hint: "[key-or-hint]"
 disable-model-invocation: true
 user-invocable: true
-allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue
+allowed-tools: Bash, Read, Write, Edit, Glob, Task, Skill, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql, mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue, mcp__plugin_atlassian_atlassian__transitionJiraIssue
 ---
 
 In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block. `<vpn-host>` refers to the On-prem VPN host from the same block.
@@ -36,7 +36,7 @@ Hardcoded in this skill:
 
 ## Argument resolution (targeted mode only)
 
-See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the standard algorithm against `<workspace>\Active\` and store the resolved name as `<TARGET>`. No variant applies — `/work` uses the standard 3-step search and standard outcomes. Resolution runs BEFORE the scan so argument errors don't waste a probe.
+See [references/argument-resolution.md](../../references/argument-resolution.md). Apply the algorithm against `<workspace>\Active\` with the **auto-scaffold fallback** variant and store the resolved name as `<TARGET>`. A Jira-key argument not yet in `Active\` is imported on the fly (via `/jira-import` through the Skill tool), then targeted — so `/work <KEY>` pulls a ticket and runs triage on it in one command. Resolution runs BEFORE the scan so argument errors don't waste a probe; the on-the-fly import needs Atlassian (Jira Cloud), not the VPN.
 
 ## Phase 0 + 1: Scan (run the script)
 
@@ -107,12 +107,14 @@ For each queued item in order:
 
    | Local `Status:` | `Tier:` set? | Dispatch |
    |---|---|---|
-   | `Planning` | no | Run **Triage**: dispatch a subagent that reads the issue file plus 1-2 relevant code files referenced in the description, proposes Trivial / Standard / Full with one-sentence rationale, writes `Tier:` field, logs `[Triage] Tier=<tier>: <rationale>` in Discussion, removes `go` line, and exits. User reviews and re-adds `go`. |
+   | `Planning` | no | Run **Triage** per [references/triage.md](../../references/triage.md): dispatch the `architect` agent (Task tool, `subagent_type: architect`) with the documented triage prompt, parse its `TIER` / `CONFIDENCE` / `RATIONALE` / `OPEN_QUESTIONS`, write `Tier:`, and log `[Triage] Tier=<tier> (confidence <n>): <rationale>`. **Confidence ≥ 80** → auto-advance through the tier's phases this same run (see *Auto-advance* note below). **Confidence < 80** → remove `go` and stop; user reviews open questions and re-adds `go`. |
    | `Planning` | `Trivial` | Skip Spec and Plan phases. Set `Status: Development`, clone AgentWorkspace, create branch, attempt Jira transition (best-effort). Dispatch a subagent running `superpowers:executing-plans` with the issue description as the implicit plan (no plan.md). |
    | `Planning` | `Standard` | Dispatch a subagent running `superpowers:writing-plans` to produce `Active\<DIR>\plan.md`. On return, subagent sets `Status: Code Review`, removes `go`. User reviews plan.md and re-adds `go` to proceed to Development. |
    | `Planning` | `Full` | Dispatch a subagent running `superpowers:brainstorming` to produce `Active\<DIR>\spec.md`, then `superpowers:writing-plans` to produce `Active\<DIR>\plan.md`. On return, subagent sets `Status: Code Review`, removes `go`. |
    | `Development` (or `In Development`) | — | Clone AgentWorkspace if missing, create branch if missing, attempt Jira transition (best-effort), dispatch a subagent running `superpowers:executing-plans` with `plan.md` as input. |
    | `Code Review` / `Development Complete` / `QA` / `QA Complete` / `Complete` / `Deployed` | — | Skip with warning logged for the summary: `[<KEY>] Skipped — Status=<status> is not actionable by /work.` |
+
+   **Auto-advance (high-confidence triage).** When triage returns confidence ≥ 80, the same `/work` run continues straight through the tier's phases without stopping — for Standard/Full the plan-review pause is skipped (the high-confidence triage stands in for it), and the run proceeds Spec (Full only) → Plan → Execute → Review → Wrap, ending at `Status: Code Review`. The per-tier rows above (`Planning` + `Trivial`/`Standard`/`Full`) describe the **resumed** path used when a `Tier:` is already set with no fresh triage — e.g. the user set it manually, or a low-confidence (< 80) triage wrote it then stopped. That resumed path keeps the human plan-review gate (Standard/Full produce `plan.md`, set `Status: Code Review`, remove `go`). Full semantics in [references/triage.md](../../references/triage.md).
 
 3. **Outbound Jira transition (ticketed items only, when dispatching a development subagent — best-effort):**
    - Check the local `Jira Status:` field (last written by `/status`). If already `In Development` (case-insensitive), skip the transition silently.
@@ -161,6 +163,6 @@ If you've been working for a while and want to see the bigger picture, run `/sta
 
 - Phase 0 + 1 run via `scan-queue.ps1` (VPN probe + queue scan). Re-run it any time to re-check state without dispatching.
 - The on-prem VPN probe is the only hard prerequisite. Atlassian failures during dispatch are tolerated and logged.
-- `/work` is offline-tolerant when only Atlassian is unreachable (on-prem git still required for repo operations).
+- `/work` is offline-tolerant when only Atlassian is unreachable (on-prem git still required for repo operations). Exception: targeted `/work <KEY>` on a not-yet-local key auto-imports the ticket (via `/jira-import`) — pull + triage in one command — and that single path needs Atlassian.
 - All Atlassian MCP tools remain available in `allowed-tools` for ad-hoc lookups or one-off debugging, even though the default flow doesn't use the read tools.
 - In targeted mode, argument resolution runs BEFORE the scan — argument errors don't waste a probe.

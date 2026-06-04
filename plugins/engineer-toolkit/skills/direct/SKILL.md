@@ -67,18 +67,22 @@ Run the same `Jira Status:` refresh as `/status` Phase 2, scoped to this single 
 
 ## Phase 1: Triage
 
-Read the issue file plus any obviously-relevant code referenced in the description (e.g., file paths, class names). Use Read/Grep for this.
+Run triage per [references/triage.md](../../references/triage.md). Dispatch the `architect` agent (Task tool, `subagent_type: architect`) with the documented triage prompt; it reads the issue plus the relevant code and returns `TIER` / `CONFIDENCE` / `RATIONALE` / `OPEN_QUESTIONS`.
 
-Propose a tier to the user:
+- **Confidence ≥ 80** — write `Tier:`, log the `[Triage] Tier=<tier> (confidence <n>): <rationale>` Discussion entry, print the non-blocking heads-up, and continue to the next phase **without** a confirm prompt:
+  ```
+  Triage: <Tier> (confidence <n>). <one-line rationale> — proceeding.
+  ```
+- **Confidence < 80** — show the interactive confirm prompt and wait for the user:
+  ```
+  Proposed tier: <Trivial|Standard|Full>
+  Confidence: <n>
+  Reasoning: <one sentence>
+  Open questions: <none | list>
 
-```
-Proposed tier: <Trivial|Standard|Full>
-Reasoning: <one sentence>
-
-Confirm? (yes / no / different tier)
-```
-
-Wait for user response. On confirmation, write `Tier: <tier>` to the issue file (insert after the `Status:` line or update existing `Tier:` line).
+  Confirm? (yes / no / different tier)
+  ```
+  On confirmation, write `Tier: <tier>` (insert after the `Status:` line or update an existing `Tier:` line).
 
 If the file already has `Tier:` set (resumed session), skip Triage and use the existing value.
 

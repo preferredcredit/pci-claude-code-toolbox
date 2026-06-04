@@ -9,7 +9,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 
 1. **Install** — `/plugin marketplace add preferredcredit/pci-claude-code-toolbox`, then install `engineer-toolkit@pci-toolbox`.
 2. **Bootstrap your workspace** — Run `/workspace-init`. Checks prerequisites, prompts for your workspace path and Jira account ID, scaffolds the folder structure.
-3. **Start working** — `/jira-import <KEY>` for ticketed work, or `/adhoc <slug> "<title>"` for unticketed investigations. Then `/status` to refresh the dashboard, or `/work` to dispatch anything ready.
+3. **Start working** — `/work <KEY>` pulls a Jira ticket and triages it in one command (it auto-imports if not already local). Or `/jira-import <KEY>` to import without starting, and `/adhoc <slug> "<title>"` for unticketed investigations. Then `/status` to refresh the dashboard, or `/work` to dispatch anything ready.
 
 ## Skills
 
@@ -18,7 +18,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 | Command | What it does |
 |---|---|
 | `/workspace-init` | Bootstrap or refresh the workspace (folders + CLAUDE.md). Checks plugin prereqs and CLI tools (git, dotnet). Re-run to refresh templates; existing local edits are detected and confirmed before overwrite. |
-| `/work` | Queue runner — process `go`-flagged items (or one named item via `/work <key-or-hint>`). Local-first, fast. Requires VPN to TFS for git ops; Jira transitions during dispatch are best-effort. |
+| `/work` | Queue runner — process `go`-flagged items (or one named item via `/work <key-or-hint>`). A not-yet-local Jira key is auto-imported then triaged (pull + triage in one command). Local-first, fast. Requires VPN to TFS for git ops; Jira transitions during dispatch are best-effort. |
 | `/status` | Discovery + housekeeping — refresh PlanningWorkspace, sync Jira Status onto local files, sweep completed items, print the dashboard (chat + HTML), suggest next work, surface unimported Jira tickets. No dispatch. Requires VPN to Atlassian. |
 | `/direct <KEY>` | Open a direct/interactive session in the current chat for a single ticket. Locks the issue from `/work`. |
 | `/adhoc <slug> "<title>"` | Create a new unticketed work item using a kebab-case slug. |
