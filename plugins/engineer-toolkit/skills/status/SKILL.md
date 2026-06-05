@@ -104,19 +104,18 @@ To insert at the top of Discussion safely with the Edit tool, find the existing 
 ### Phase 4: Dashboard
 
 1. Re-enumerate `Active\*\` directories (after sweep).
-2. For each directory, read its `<DIR>.md` file and extract: Title, Status, Tier, Mode, Jira (`Jira Status:` or `-`), Branch, Blocked, Next (`agent` if `go` line present, else `user`).
+2. For each directory, read its `<DIR>.md` file and extract: Title, Status, Tier, Jira (`Jira Status:` or `-`), Branch, Blocked, Next (`agent` if `go` line present, else `user`).
 3. Print:
 
 ```
 Active Work (<N> items)
 
-| Key      | Title                          | Status               | Tier     | Mode    | Jira                 | Next  | Branch       | Blocked |
-|----------|--------------------------------|----------------------|----------|---------|----------------------|-------|--------------|---------|
-| <key>    | <title>                        | <status>             | <tier>   | <mode>  | <jira>               | <next>| <branch>     | <blocked> |
+| Key      | Title                          | Status               | Tier     | Jira                 | Next  | Branch       | Blocked |
+|----------|--------------------------------|----------------------|----------|----------------------|-------|--------------|---------|
+| <key>    | <title>                        | <status>             | <tier>   | <jira>               | <next>| <branch>     | <blocked> |
 ...
 
 Ready for agent: <K> items have `go` flag (<comma-separated keys>)
-Locked to chat: <L> items have Mode: direct (<comma-separated keys>)
 ```
 
 - Truncate Title to 30 characters with `…` if longer.
@@ -125,7 +124,7 @@ Locked to chat: <L> items have Mode: direct (<comma-separated keys>)
 
 **Also write `<workspace>\dashboard.html`** (when `<N>` ≥ 1):
 
-Single-file dark-themed HTML report with the same per-item data, rendered as a card/table action board. Color-code rows by `Status:`, show `Jira Status:` and `Branch` as clickable links where applicable, mark `Mode: direct` items with a distinct badge. Skip the HTML write if `<N>` is 0 — leave any prior `dashboard.html` in place.
+Single-file dark-themed HTML report with the same per-item data, rendered as a card/table action board. Color-code rows by `Status:`, show `Jira Status:` and `Branch` as clickable links where applicable. Skip the HTML write if `<N>` is 0 — leave any prior `dashboard.html` in place.
 
 ### Phase 5: Suggest next work + Pull from Jira
 

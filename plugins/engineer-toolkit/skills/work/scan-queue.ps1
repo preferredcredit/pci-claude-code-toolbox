@@ -10,11 +10,11 @@
                      (reported ok=true) when -VpnHost is empty.
     2. Queue scan  - enumerates <Workspace>\Active\*, reads each <dir>\<dir>.md,
                      detects the `go` flag (first non-empty line starts with go),
-                     detects `Mode: direct`, and captures Status/Priority/Tier and
-                     whether the item is ticketed (has a Jira: line).
+                     and captures Status/Priority/Tier and whether the item is
+                     ticketed (has a Jira: line).
 
   Emits a single JSON object: { vpn, workspace, target, items[] }.
-  Each item carries a `queued` boolean (go-flagged AND not Mode: direct).
+  Each item carries a `queued` boolean (true when go-flagged).
   Items are pre-sorted by Priority (High>Medium>Low; unknown=Medium) then name.
 
   Dispatch, sorting beyond this, and all judgment stay with the caller. This
@@ -100,14 +100,12 @@ $items = foreach ($d in $dirs) {
 
     $firstNonEmpty = ($lines | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
     $goFlagged  = [bool]($firstNonEmpty -and ($firstNonEmpty.TrimStart() -match '^go(\s|$)'))
-    $modeDirect = [bool]($lines | Where-Object { $_ -match '^\s*Mode\s*:\s*direct\s*$' })
     $ticketed   = [bool]($lines | Where-Object { $_ -match '^\s*Jira\s*:' })
 
     [pscustomobject]@{
         dir        = $d.Name
         goFlagged  = $goFlagged
-        modeDirect = $modeDirect
-        queued     = ($goFlagged -and -not $modeDirect)
+        queued     = $goFlagged
         status     = Get-Field -Lines $lines -Name 'Status'
         priority   = Get-Field -Lines $lines -Name 'Priority'
         tier       = Get-Field -Lines $lines -Name 'Tier'

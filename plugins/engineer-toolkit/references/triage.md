@@ -1,6 +1,6 @@
 # Triage
 
-Shared triage procedure for `/work` (async) and `/direct` (interactive). Triage assigns the **Tier** that gates which workflow phases run, using the generic `architect` agent for the judgment, and uses the architect's **confidence score** to decide whether to auto-advance past the human gate.
+Shared triage procedure for `/work` — both the autonomous **full pass** and a **targeted** focused session (`/work <item>`). Triage assigns the **Tier** that gates which workflow phases run, using the generic `architect` agent for the judgment, and uses the architect's **confidence score** to decide whether to auto-advance past the human gate.
 
 `<workspace>` and `<CloudId>` come from the workspace `CLAUDE.md` `## Configuration` block.
 
@@ -34,16 +34,17 @@ THRESHOLD = 80   (integer, 0–100)
 
 ### Auto-advance by mode
 
-**`/work` (async):**
-- **≥ 80** — proceed in the same run without stopping: run the tier's phases end-to-end (Full: `brainstorming` → `writing-plans` → execute; Standard: `writing-plans` → execute; Trivial: execute), then Review and Wrap. The high-confidence triage also stands in for the plan-review gate — do **not** pause for human plan approval. Keep the `go` line until the run reaches its terminal state (Code Review / Development Complete).
+**Full pass (`/work`, autonomous):**
+- **≥ 80** — proceed in the same run without stopping: run the tier's phases end-to-end (Full: `brainstorming` → `writing-plans` → execute; Standard: `writing-plans` → execute; Trivial: execute), then Review and Wrap. The high-confidence triage also stands in for the plan-review gate — do **not** pause for human plan approval. The item keeps its `go` line until the run reaches its terminal state (Code Review / Development Complete).
 - **< 80** — write `Tier:`, log the `[Triage]` entry with open questions, **remove the `go` line, and stop.** The user reviews and re-adds `go` to continue.
 
-**`/direct` (interactive):**
+**Targeted (`/work <item>`, focused session in chat):**
 - **≥ 80** — print a non-blocking heads-up and continue through the phases without the confirm prompt:
   ```
   Triage: <Tier> (confidence <n>). <one-line rationale> — proceeding.
   ```
-- **< 80** — fall back to the interactive confirm prompt:
+  (The item's `go` flag was already cleared when the session claimed it; progression is conversational, not `go`-gated.)
+- **< 80** — fall back to the interactive confirm prompt (a chat turn):
   ```
   Proposed tier: <Trivial|Standard|Full>
   Confidence: <n>
@@ -52,7 +53,7 @@ THRESHOLD = 80   (integer, 0–100)
 
   Confirm? (yes / no / different tier)
   ```
-  Wait for the user, then write the confirmed `Tier:`.
+  Wait for the user, then write the confirmed `Tier:` and continue the session.
 
 ## Triage prompt
 

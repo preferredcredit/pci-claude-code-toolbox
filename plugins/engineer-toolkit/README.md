@@ -20,7 +20,6 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 | `/workspace-init` | Bootstrap or refresh the workspace (folders + CLAUDE.md). Checks plugin prereqs and CLI tools (git, dotnet). Re-run to refresh templates; existing local edits are detected and confirmed before overwrite. |
 | `/work` | Queue runner — process `go`-flagged items (or one named item via `/work <key-or-hint>`). A not-yet-local Jira key is auto-imported then triaged (pull + triage in one command). Local-first, fast. Requires VPN to TFS for git ops; Jira transitions during dispatch are best-effort. |
 | `/status` | Discovery + housekeeping — refresh PlanningWorkspace, sync Jira Status onto local files, sweep completed items, print the dashboard (chat + HTML), suggest next work, surface unimported Jira tickets. No dispatch. Requires VPN to Atlassian. |
-| `/direct <KEY>` | Open a direct/interactive session in the current chat for a single ticket. Locks the issue from `/work`. |
 | `/adhoc <slug> "<title>"` | Create a new unticketed work item using a kebab-case slug. |
 | `/jira-import <KEY>` | Pull a Jira ticket into a local `Active\<KEY>\` folder. |
 | `/smoke <KEY>` | Run a local Playwright walk-through of the ticket's acceptance criteria against your dev branch. |

@@ -74,7 +74,7 @@ Run the checks in parallel via Bash. Treat a non-zero exit as "not configured."
 
 | Tool | Why it matters | Check |
 |---|---|---|
-| `git` | All repo cloning + branch ops in `/work`, `/direct`, `/smoke` | `git --version` |
+| `git` | All repo cloning + branch ops in `/work`, `/smoke` | `git --version` |
 | `dotnet` | `dotnet build`/`dotnet test` in `/author-review` and `/smoke` | `dotnet --version` |
 
 > The GitHub CLI (`gh`) is intentionally not checked. PCI hosts code on Azure DevOps on-prem, where `gh` doesn't work — the review skills fall back to user-supplied diffs / local `git diff`. See workflow doctrine "No GitHub CLI".
