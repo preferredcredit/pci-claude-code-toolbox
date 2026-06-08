@@ -164,7 +164,7 @@ Local issue files have **two** status fields with very different ownership:
 - Only `/status` writes `Jira Status:`. Nothing else touches it.
 - `Status:` is owned by whoever is currently driving the work (planning agent, dev agent, user). `/work` reads it to decide what to dispatch but never overwrites it from Jira.
 - The dashboard shows both side by side; mismatch is normal (e.g., local `Code Review`, Jira `In Development` while the user reviews the PR before transitioning Jira).
-- Sweep (move to `Complete\`) triggers on either: local `Status: Complete`, OR `Jira Status: Complete` / `Development Complete`. Either source declaring "done" removes it from `Active\`.
+- Sweep (move to `Complete\`) is owned by `/status` Phase 3 — that skill is the sole authority for the trigger condition and performs the move. `/work` never sweeps. (Gist: an item is done when local `Status:` or the Jira mirror says so — but see `/status` for the exact rule rather than relying on this line.)
 
 ### `Tier:` field
 
