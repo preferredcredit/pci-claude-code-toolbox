@@ -133,11 +133,11 @@ Bucket every Active item into exactly one of these groups based on the issue fil
 | Bucket | Inclusion rule | Hint to print |
 |--------|----------------|---------------|
 | **Merge & transition Jira** | `Status: Development Complete` | merge PR, then move Jira |
-| **Review PR** | `Status: Code Review` AND `Branch:` is non-empty | PR awaiting your review |
-| **Review plan** | `Status: Code Review` AND `Branch:` is empty | plan.md awaiting your review |
+| **Review PR** | `Status: Code Review` | PR awaiting your review |
+| **Review plan** | `Status: Plan Review` | plan.md awaiting your review — add `go` to approve and advance to Development |
 | **Resume dev** | `Status: Development` (or `In Development`) AND file has no `go` line | add `go` to resume |
 | **Kick off planning** | `Status: Planning` AND file has no `go` line AND no `plan.md` exists | add `go` to start planning |
-| **Plan delivered, awaiting approval** | `Status: Planning` AND file has no `go` line AND `plan.md` exists | review plan.md, then add `go` with approval |
+| **Plan delivered, awaiting approval** | `Status: Planning` AND file has no `go` line AND `plan.md` exists (legacy state — canonical post-plan status is now `Plan Review`) | review plan.md, then add `go` with approval |
 | **Tracking / parent** | anything else (rare) | no immediate action |
 
 Within each bucket, sort by Priority (`High` > `Medium` > `Low`), then by directory name.

@@ -116,7 +116,7 @@ Bash(cd <workspace>/PlanningWorkspace && for dir in */; do (cd "$dir" && git fet
 go
 # [Issue Title]
 
-Status: Planning | Development | Code Review | Development Complete | Complete
+Status: Planning | Plan Review | Development | Code Review | Development Complete | Complete
 Tier: Trivial | Standard | Full
 Priority: High | Medium | Low
 Branch: [link]
@@ -138,7 +138,7 @@ _(Newest first - format: [agent] message)_
 ```markdown
 # [Issue Title]
 
-Status: Planning | Development | Code Review | Development Complete | Complete
+Status: Planning | Plan Review | Development | Code Review | Development Complete | Complete
 Tier: Trivial | Standard | Full
 ...
 ```
@@ -175,10 +175,13 @@ Local issue files have **two** status fields with very different ownership:
 | Status | Meaning | `/work` action |
 |--------|---------|----------------|
 | Planning | Claude researching/designing | Dispatch planning subagent |
+| Plan Review | plan.md written, awaiting human approval | None until `go` re-added; then advance to Development |
 | Development | Claude coding (branch exists) | Resume dev subagent |
 | Code Review | PR created, waiting for human review | None (skip with warning if `go` set) |
 | Development Complete | Local work done, awaiting Jira transition | None (skip with warning if `go` set) |
 | Complete | Done locally — sweep eligible | Sweep, no dispatch |
+
+`Plan Review` and `Code Review` are deliberately distinct: both mean "X is written, awaiting your review of X," but they route differently. `Plan Review` is the post-planning gate — re-adding `go` approves the plan and advances the item to Development. `Code Review` is the post-implementation gate — the PR is up, and `/work` treats it as terminal (re-adding `go` does nothing; the next move is yours in Azure DevOps). Never park a freshly-written plan in `Code Review` — that conflates the two gates and `/work` will skip it instead of executing.
 
 `In Development` is also accepted as a synonym for `Development` (Jira's spelling). For pure parity, files may carry `QA`, `QA Complete`, or `Deployed` as local statuses, but `/work` treats them as non-actionable (same as `Code Review`).
 
