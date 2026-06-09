@@ -7,6 +7,8 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue
 ---
 
+<!-- Distribution copy. Canonical source: the ClaudeWorkspace project skill of the same name; sync deliberately. Last sync: 2026-06-09. -->
+
 In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same Configuration block.
 
 # Smoke

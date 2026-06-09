@@ -7,6 +7,8 @@ user-invocable: true
 allowed-tools: Read, Write, Glob
 ---
 
+<!-- Distribution copy. Canonical source: the ClaudeWorkspace project skill of the same name; sync deliberately. Last sync: 2026-06-09. -->
+
 In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
 
 # Adhoc
@@ -59,7 +61,7 @@ This confirmation step exists because slugs are sticky — they appear in the fo
 
 3. **Jira-key collision** — if the slug, when upper-cased, matches the Jira-key pattern `^[A-Z]+-\d+$` (e.g., `co-322`, `ngu-100`), respond:
    ```
-   Slug looks like a Jira key. Use /jira-import for ticketed work, or pick a descriptive slug.
+   Slug looks like a Jira key. Use /work <KEY> for ticketed work, or pick a descriptive slug.
    ```
    and stop.
 

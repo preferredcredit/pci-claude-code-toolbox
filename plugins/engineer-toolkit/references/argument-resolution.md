@@ -1,6 +1,8 @@
 # Argument Resolution
 
-Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/work`, `/direct`, `/smoke`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
+Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/smoke`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
+
+(`/work` resolves its argument via `scan-queue.ps1 -Target <arg>` instead — same exact → Jira-key → substring order, plus a `jirakey-miss` outcome that triggers inline Jira import. See the `/work` skill.)
 
 ## Standard algorithm
 
@@ -17,16 +19,6 @@ Apply against `<workspace>\Active\` (first match wins):
 - **One match** — store the resolved directory name as `<TARGET>` and proceed.
 
 ## Variants
-
-### Auto-scaffold fallback (`/direct` only)
-
-Replace the zero-matches outcome with a fallback step 4:
-
-4. **Auto-scaffold**
-   - If `<arg>` upper-cased matches `^[A-Z]+-\d+$` (looks like a Jira key): run `/jira-import <UPPER-ARG>`. After import succeeds, set the target to the newly created `Active\<UPPER-ARG>\`. If import fails, print the failure and stop.
-   - Otherwise (looks like an adhoc slug): print `Adhoc slug '<arg>' doesn't exist. Create it first with /adhoc <slug> "<title>".` and stop.
-
-The other three outcomes (multiple-matches, one-match, plus the standard zero-matches error if step 4 doesn't apply) are unchanged.
 
 ### Multi-root search (`/qa` only)
 
