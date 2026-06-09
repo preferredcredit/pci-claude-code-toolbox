@@ -237,6 +237,15 @@ Consistency with the prose:
 
 ---
 
+## Output Discipline
+
+The reviewer reads your output to learn what's wrong, not to follow your reasoning process.
+
+- If after analysis you decide a candidate finding does NOT meet the bar, **omit it entirely** from both the prose AND the JSON. Do not write "I thought about X, then realized it's fine." Do not write "On closer inspection, withdrawing this finding."
+- Before emitting the final response, re-read your own prose. Delete any paragraph that analyzes something you ultimately concluded is a non-issue. The reader should see your conclusion, not your deliberation.
+- If your prose section and JSON section disagree, the JSON is authoritative — edit the prose to match. Never emit a comment where the header says one thing and the body says another.
+- A clean review (no findings) is a real and valuable outcome. If nothing meets the bar, say so plainly and emit `findings: []`. Don't manufacture findings to look thorough.
+
 ## Review Priorities
 
 When reviewing, prioritize in this order:
