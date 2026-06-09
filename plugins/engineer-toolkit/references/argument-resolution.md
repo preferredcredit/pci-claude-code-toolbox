@@ -1,6 +1,8 @@
 # Argument Resolution
 
-Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/work`, `/smoke`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
+Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/smoke`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
+
+(`/work` resolves its argument via `scan-queue.ps1 -Target <arg>` instead — same exact → Jira-key → substring order, plus a `jirakey-miss` outcome that triggers inline Jira import. See the `/work` skill.)
 
 ## Standard algorithm
 
@@ -17,18 +19,6 @@ Apply against `<workspace>\Active\` (first match wins):
 - **One match** — store the resolved directory name as `<TARGET>` and proceed.
 
 ## Variants
-
-### Auto-scaffold fallback (`/work`)
-
-`/work` replaces the zero-matches outcome with a fallback step 4, so naming a not-yet-imported Jira key pulls it in on the fly instead of erroring:
-
-4. **Auto-scaffold**
-   - If `<arg>` upper-cased matches `^[A-Z]+-\d+$` (looks like a Jira key): run `/jira-import <UPPER-ARG>` via the Skill tool. After import succeeds, set the target to the newly created `Active\<UPPER-ARG>\`. If import fails, print the failure and stop.
-   - Otherwise (looks like an adhoc slug): print `Adhoc slug '<arg>' doesn't exist. Create it first with /adhoc <slug> "<title>".` and stop.
-
-The other three outcomes (multiple-matches, one-match, plus the standard zero-matches error if step 4 doesn't apply) are unchanged.
-
-The on-the-fly import needs Atlassian (Jira Cloud), not the on-prem VPN. For `/work`, the freshly scaffolded item is `Planning` with no `Tier:`, so the normal Phase 3 flow runs **triage** on it immediately — `/work <KEY>` becomes pull + triage in one command.
 
 ### Multi-root search (`/qa` only)
 

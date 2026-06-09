@@ -134,20 +134,15 @@ _(Newest first - format: [agent] message)_
 [From Jira]
 ```
 
-**Not agent's turn** (file starts with `#`):
-```markdown
-# [Issue Title]
-
-Status: Planning | Plan Review | Development | Code Review | Development Complete | Complete
-Tier: Trivial | Standard | Full
-...
-```
+**Not agent's turn** (file starts with `#`): identical, minus the leading `go` line.
 
 **Field notes:**
 - `Tier:` set during Phase 1 Triage. One of `Trivial` (skip spec + plan), `Standard` (skip spec, write plan), `Full` (write both). Locked once set unless explicitly retriaged.
-- `go` line: present = available for the autonomous full pass to pick up. A targeted `/work <item>` session clears it on claim (so a concurrent full pass won't double-grab) and drives the rest conversationally. Re-add `go` to hand the item back to the queue.
+- `go` line — present = available for the autonomous `/work` full pass. A targeted `/work <item>` clears it on claim (naming the item is consent); progression is then conversational. There is no separate lock field — `go`-absence is the only coordination signal.
 - `Blocked:` empty when not blocked, contains reason when blocked.
 - `Jira Status:` only on ticketed items (omit for adhoc).
+
+The full template, priority mapping, and Jira-import procedure live in the plugin's `references/issue-file-format.md`.
 
 ## Two-Field Status Model
 
@@ -168,22 +163,22 @@ Local issue files have **two** status fields with very different ownership:
 
 ### `Tier:` field
 
-`Tier:` lives alongside `Status:` but is owned independently: set once during Triage, it gates which phases run (`Trivial`/`Standard`/`Full`). See "Issue File Format" for the field shapes and lifecycle. There is no separate mode/lock field — the `go` flag's presence is the only coordination signal (see the `go` field note above).
+`Tier:` lives alongside `Status:` but is owned independently: set once during Triage, it gates which phases run. There is no separate mode/lock field — the `go` flag's presence is the only coordination signal between the autonomous full pass and a targeted focused session.
 
 ### Local `Status:` values (the ones Claude/`/work` cares about)
 
 | Status | Meaning | `/work` action |
 |--------|---------|----------------|
-| Planning | Claude researching/designing | Dispatch planning subagent |
+| Planning | Claude researching/designing | Dispatch triage/planning per Tier |
 | Plan Review | plan.md written, awaiting human approval | None until `go` re-added; then advance to Development |
 | Development | Claude coding (branch exists) | Resume dev subagent |
-| Code Review | PR created, waiting for human review | None when unflagged. **With `go` set:** read the file and act — address PR feedback recorded in Discussion/PR (resume dev), else report and ask. `go` is never ignored. |
-| Development Complete | Local work done, awaiting Jira transition | None when unflagged. **With `go` set:** read the file and do any follow-up it describes, else report current state. |
-| Complete | Done locally — sweep eligible | Swept by `/status`. **With `go` set:** read the file; if genuinely done, report `Already Complete — run /status to sweep` (no dispatch); if it describes new work, treat as Development. |
+| Code Review | PR created, waiting for human review | None when unflagged. **With `go` set:** read the file and act — address recorded PR feedback (resume dev), else report and ask. `go` is never ignored. |
+| Development Complete | Local work done, awaiting Jira transition | None when unflagged. With `go` set: read the file and do any described follow-up, else report state. |
+| Complete | Done locally — sweep eligible | Swept by `/status` (no dispatch) |
 
-`Plan Review` and `Code Review` are deliberately distinct: both mean "X is written, awaiting your review of X," but they route differently. `Plan Review` is the post-planning gate — re-adding `go` approves the plan and advances the item to Development. `Code Review` is the post-implementation gate — the PR is up, awaiting your review in Azure DevOps. **The `go` flag is always the work signal: a `go`-flagged item is never skipped on account of its status.** When you re-add `go` to a `Code Review` item, `/work` reads the file and acts — addressing recorded PR feedback (resuming dev) if there is any, otherwise reporting that the PR awaits human review and asking what's needed. (Left unflagged, `Code Review` simply sits — the next move is normally yours in ADO.) Don't, however, park a freshly-written plan in `Code Review`: that conflates the two gates. Use `Plan Review` for plans.
+`Plan Review` and `Code Review` are deliberately distinct gates: re-adding `go` to a `Plan Review` item approves the plan and advances it to Development; `Code Review` means the PR awaits your review in Azure DevOps. **The `go` flag is always the work signal — a `go`-flagged item is never skipped on account of its status.**
 
-`In Development` is also accepted as a synonym for `Development` (Jira's spelling). Files may also carry `QA`, `QA Complete`, or `Deployed` as local statuses for parity. None of these statuses exempt a `go`-flagged item from being worked: when `go` is set, `/work` reads the file and does whatever it describes (or reports current state if nothing is outstanding). Unflagged, they sit idle.
+`In Development` is also accepted as a synonym for `Development` (Jira's spelling). Files may carry `QA`, `QA Complete`, or `Deployed` as local statuses for parity; unflagged they sit idle, `go`-flagged they get read-and-acted-on like any other.
 
 ### `Jira Status:` values
 
@@ -195,10 +190,10 @@ The Jira-driven workflow has phases (Setup → Triage → Spec → Plan → Exec
 
 | Want to know... | Read the skill |
 |---|---|
-| Process `go`-flagged items (full pass), or work a single item as a focused in-chat session (`/work <item>`) | `/work` |
+| Process `go`-flagged items, or work one named item as a focused in-chat session (`/work <key-or-hint>` — also imports a not-yet-local Jira key inline) | `/work` |
 | Discovery + housekeeping pass (refresh PlanningWorkspace, sync Jira Status, sweep, dashboard, suggest next work) | `/status` |
 | Workspace bootstrap, prereq check, scaffold flow | `/workspace-init` |
-| Issue scaffolding from a Jira key or a free-form description | `/jira-import`, `/adhoc` |
+| Scaffolding unticketed work from a slug or free-form description | `/adhoc` |
 | Local Playwright smoke walk against your dev branch | `/smoke` |
 | End-to-end QA verification (dev/qa/staging) | `/qa` |
 | New Story-workflow ticket (CRD, CO, etc.) | `/create-issue` |

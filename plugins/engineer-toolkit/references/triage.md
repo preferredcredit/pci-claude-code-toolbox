@@ -1,8 +1,8 @@
 # Triage
 
-Shared triage procedure for `/work` — both the autonomous **full pass** and a **targeted** focused session (`/work <item>`). Triage assigns the **Tier** that gates which workflow phases run, using the generic `architect` agent for the judgment, and uses the architect's **confidence score** to decide whether to auto-advance past the human gate.
+Shared triage procedure for `/work` — both the autonomous **full pass** and a **targeted** focused session (`/work <item>`). Triage assigns the **Tier** that gates which workflow phases run, using the `architect` agent for the judgment, and uses the architect's **confidence score** to decide whether to auto-advance past the human gate.
 
-`<workspace>` and `<CloudId>` come from the workspace `CLAUDE.md` `## Configuration` block.
+`<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block.
 
 ## Tier criteria
 
