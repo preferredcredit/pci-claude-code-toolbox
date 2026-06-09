@@ -177,13 +177,13 @@ Local issue files have **two** status fields with very different ownership:
 | Planning | Claude researching/designing | Dispatch planning subagent |
 | Plan Review | plan.md written, awaiting human approval | None until `go` re-added; then advance to Development |
 | Development | Claude coding (branch exists) | Resume dev subagent |
-| Code Review | PR created, waiting for human review | None (skip with warning if `go` set) |
-| Development Complete | Local work done, awaiting Jira transition | None (skip with warning if `go` set) |
-| Complete | Done locally — sweep eligible | Sweep, no dispatch |
+| Code Review | PR created, waiting for human review | None when unflagged. **With `go` set:** read the file and act — address PR feedback recorded in Discussion/PR (resume dev), else report and ask. `go` is never ignored. |
+| Development Complete | Local work done, awaiting Jira transition | None when unflagged. **With `go` set:** read the file and do any follow-up it describes, else report current state. |
+| Complete | Done locally — sweep eligible | Swept by `/status`. **With `go` set:** read the file; if genuinely done, report `Already Complete — run /status to sweep` (no dispatch); if it describes new work, treat as Development. |
 
-`Plan Review` and `Code Review` are deliberately distinct: both mean "X is written, awaiting your review of X," but they route differently. `Plan Review` is the post-planning gate — re-adding `go` approves the plan and advances the item to Development. `Code Review` is the post-implementation gate — the PR is up, and `/work` treats it as terminal (re-adding `go` does nothing; the next move is yours in Azure DevOps). Never park a freshly-written plan in `Code Review` — that conflates the two gates and `/work` will skip it instead of executing.
+`Plan Review` and `Code Review` are deliberately distinct: both mean "X is written, awaiting your review of X," but they route differently. `Plan Review` is the post-planning gate — re-adding `go` approves the plan and advances the item to Development. `Code Review` is the post-implementation gate — the PR is up, awaiting your review in Azure DevOps. **The `go` flag is always the work signal: a `go`-flagged item is never skipped on account of its status.** When you re-add `go` to a `Code Review` item, `/work` reads the file and acts — addressing recorded PR feedback (resuming dev) if there is any, otherwise reporting that the PR awaits human review and asking what's needed. (Left unflagged, `Code Review` simply sits — the next move is normally yours in ADO.) Don't, however, park a freshly-written plan in `Code Review`: that conflates the two gates. Use `Plan Review` for plans.
 
-`In Development` is also accepted as a synonym for `Development` (Jira's spelling). For pure parity, files may carry `QA`, `QA Complete`, or `Deployed` as local statuses, but `/work` treats them as non-actionable (same as `Code Review`).
+`In Development` is also accepted as a synonym for `Development` (Jira's spelling). Files may also carry `QA`, `QA Complete`, or `Deployed` as local statuses for parity. None of these statuses exempt a `go`-flagged item from being worked: when `go` is set, `/work` reads the file and does whatever it describes (or reports current state if nothing is outstanding). Unflagged, they sit idle.
 
 ### `Jira Status:` values
 
