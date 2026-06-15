@@ -2,8 +2,6 @@
 
 Claude Code plugin **specific to PCI's Credit Risk & Decisioning (CRD) team**. The skills in this toolkit are tailored to the CRD team's Jira project, ticket types, and standard ticket formats — they are intended for the CRD team's workflows, not as general-purpose Jira skills. Each one drafts a ticket and creates it in PCI's Jira (`preferredcredit.atlassian.net`) after an explicit confirmation step.
 
-> These skills are ports of PCI's `jira-toolkit`, renamed under the `create-crd-*` command namespace for the CRD team. The ticket-authoring workflows are otherwise unchanged.
-
 ## Skills
 
 All skills are **explicitly invoked** (slash command only) and never auto-trigger on natural language. Each one interviews you for the key points, drafts the ticket, shows a preview, and writes to Jira only after you confirm.
