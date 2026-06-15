@@ -1,0 +1,12 @@
+{
+  "name": "crd-toolkit",
+  "description": "Credit Risk & Decisioning (CRD) team toolkit — Jira skills for creating CRD epics, stories, tasks, bugs, and release Changes in PCI's standard formats.",
+  "version": "0.1.0",
+  "author": {
+    "name": "PCI"
+  },
+  "homepage": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "repository": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "license": "MIT",
+  "keywords": ["jira", "atlassian", "crd", "credit-risk", "change-management", "pci"]
+}
