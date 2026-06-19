@@ -18,9 +18,7 @@ The user has provided: `$ARGUMENTS`
 
 Recognized flags:
 - `--title "..."` — initiative summary. Drafted from context if omitted.
-- `--relates KEY` — create a `Relates` link to KEY (e.g. a related initiative). Repeatable.
-- `--blocked-by KEY` — this initiative **is blocked by** KEY. Repeatable.
-- `--blocks KEY` — this initiative **blocks** KEY. Repeatable.
+- `--link "<relationship> KEY"` — link this initiative to a peer issue (e.g. a related/blocking initiative) using any relationship the Jira instance offers (`relates to`, `blocks`, `is blocked by`, `duplicates`, …). The last token is the key; the rest is the relationship phrase. Repeatable.
 
 Any other text is freeform context — use it before asking questions.
 
@@ -30,22 +28,28 @@ From `$ARGUMENTS`, work out what is already known. Then ask conversationally for
 
 1. **Goal** — who wants this and what outcome does it deliver? One to three sentences, plus the sub-goals it unlocks. Note any phasing (what phase one establishes; what's downstream).
 2. **Scope (epics)** — the major workstreams this breaks into, as a rough list. Which already exist as epics (CRD keys), and which are still to create?
-3. **Related/blocking tickets** *(optional)* — a related initiative this relates to, is blocked by, or blocks? (Or pass `--relates` / `--blocked-by` / `--blocks`.) These become native links. Skip if none. *(Child epics are not linked here — they attach via their own `--parent`.)*
+3. **Related issues** *(optional)* — a related/blocking initiative, and how it relates (e.g. "blocked by CRD-123", "relates to CRD-456")? (Or pass `--link`.) These become native links. Skip if none. *(Child epics are not linked here — they attach via their own `--parent`.)*
 
 Ask about out-of-scope items ("not now", deferred work) only if the user hasn't volunteered them — and if there are none, that section is simply omitted.
 
 Don't interrogate — at most three rounds of questions, then draft; use follow-up rounds only when an answer genuinely needs clarifying. The Goal is mandatory; everything else can be thin in v1 of a ticket.
 
-## Step 2: Resolve link types & validate targets
+## Step 2: Resolve links
 
-Skip this step entirely if no related/blocking tickets were provided. This covers **peer** relationships only (related/blocking initiatives) — child Epics attach via their own `--parent`, not here.
+Skip this step entirely if no related issues were named. This covers **peer** relationships only (related/blocking initiatives) — child Epics attach via their own `--parent`, not here.
 
 For all Jira calls, pass `preferredcredit.atlassian.net` as `cloudId`. If that's rejected, call `getAccessibleAtlassianResources` and use the `id` of the resource whose `url` contains `preferredcredit.atlassian.net`.
 
-1. **Resolve link type names.** Call `getIssueLinkTypes`. Capture the canonical `name` of the `Relates` type (also accept the sort-prefixed `1Relates`) and — if any `--blocked-by`/`--blocks` targets exist — the `Blocks` type (accept sort-prefixed variants) plus its `inward`/`outward` labels for direction. If a *requested* type isn't found, report it and drop those targets; don't abort the skill.
-2. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every link key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+1. **Discover the link catalog.** Call `getIssueLinkTypes` and read each type's `name`, `inward`, and `outward` phrasings. Use whatever the instance offers — don't assume a fixed set. (PCI's instance currently includes `1Relates` [relates to], `Blocks` [blocks / is blocked by], `Duplicate` [duplicates / is duplicated by], `Cloners` [clones / is cloned by], `Problem/Incident` [causes / is caused by], and `Predecessor` [precedes / is preceded by]; the `Polaris…`, `Translation`, and `Action item` types are system-managed — ignore them unless the user explicitly asks.)
+2. **Pick the type that fits.** For each requested link, choose the type whose `inward`/`outward` phrasing best matches the relationship the user described. If nothing fits, fall back to `Relates` (`1Relates`) and say so; if the phrase is ambiguous, ask.
+3. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+4. **Fix the direction from the type's own labels.** Follow the `createIssueLink` contract exactly: `inwardIssue` is the issue that *performs* the type's **outward** verb; `outwardIssue` is the issue on the **inward** (receiving) side. (Tool's own example: *"A is blocked by B"* → `inwardIssue: B, outwardIssue: A` — B blocks, so B is inward.) From the new initiative's side:
+   - the initiative **performs** the outward verb — it *blocks / duplicates* the target → `inwardIssue: <NEW>, outwardIssue: <target>`
+   - the initiative is on the **inward** side — it *is blocked by* the target → `inwardIssue: <target>, outwardIssue: <NEW>`
+   - symmetric types (`Relates`) → direction doesn't matter.
+   If unsure how a link will read, create one and confirm its direction in Jira before adding the rest.
 
-Carry the resolved links (type, direction, key, summary) into the preview and Step 5.
+Carry each resolved link (`type name`, `inward key`, `outward key`, display phrase) into the preview and Step 5.
 
 ## Step 3: Draft
 
@@ -74,7 +78,7 @@ _Append as they happen:_ DECISION: <outcome> — per <person>, <date>.
 
 Always include the `## Decisions` section with its append-convention line, even though it's empty at creation — it's the one deliberate scaffold this skill emits, so decisions land in the ticket instead of being buried in comments.
 
-**Reflect gathered peer links in the body too.** Per team preference, any `--relates`/`--blocked-by`/`--blocks` target also appears in the body (a short `Related work:` line under the Goal), not only as a native link. **Do not** turn the `## Scope (Epics)` checklist into native links — child epics attach via their own `--parent` (created with `/create-crd-epic`), and the checklist's ✅/⚖️ markers are a deliberate scope ledger.
+**Reflect gathered peer links in the body too.** Per team preference, any linked issue also appears in the body (a short `Related work:` line under the Goal, with its relationship), not only as a native link. **Do not** turn the `## Scope (Epics)` checklist into native links — child epics attach via their own `--parent` (created with `/create-crd-epic`), and the checklist's ✅/⚖️ markers are a deliberate scope ledger.
 
 Quality bar: CRD-515 (goal with phasing, epic-scope checklist with keys, decision log). Reference key for maintainers — don't fetch it during a run. Anti-patterns to avoid: empty descriptions, one-line tautologies restating the title, and "epics coming" placeholders.
 
@@ -90,8 +94,8 @@ About to create CRD Initiative:
   Summary:   <title>
 
 Links to create:        ← omit this block if no links
-  • relates       → CRD-123 — <summary>
-  • is blocked by  → CRD-456 — <summary>
+  • is blocked by → CRD-456 — <summary>
+  • relates to    → CRD-123 — <summary>
 Skipped (not found in Jira):
   • <BAD-KEY>
 
@@ -121,12 +125,18 @@ Confirmation is mandatory — there is no `--yes` flag.
 }
 ```
 
-On `createJiraIssue` failure, surface the API error verbatim and stop — don't attempt linking.
+Initiative is the top of the CRD hierarchy — there is **no parent**, and priority defaults to Medium, so neither is set. On `createJiraIssue` failure, surface the API error verbatim and stop — don't attempt linking.
 
-2. **Link each target** from Step 2, using the new initiative key as `NEW`:
-   - relates → `{ "type": { "name": "<Relates name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
-   - `--blocks` (initiative blocks target) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
-   - `--blocked-by` (target blocks initiative) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<NEW>" }, "outwardIssue": { "key": "<target>" } }`
+2. **Link each resolved target** from Step 2 by calling `createIssueLink` with the new initiative key, the chosen type `name`, and the inward/outward keys fixed in Step 2:
+
+```json
+{
+  "cloudId": "preferredcredit.atlassian.net",
+  "type": { "name": "<resolved link type, e.g. Blocks>" },
+  "inwardIssue": { "key": "<inward key from Step 2>" },
+  "outwardIssue": { "key": "<outward key from Step 2>" }
+}
+```
 
    Continue past per-link failures — collect them for the report.
 
@@ -141,21 +151,6 @@ Failed links (if any):
 
 Next: create child epics with /create-crd-epic --parent <KEY>, then list them in the Scope (Epics) section.
 ```
-
-## Payload shape
-
-```json
-{
-  "cloudId": "preferredcredit.atlassian.net",
-  "projectKey": "CRD",
-  "issueTypeName": "Initiative",
-  "summary": "<title>",
-  "description": "<markdown>",
-  "contentFormat": "markdown"
-}
-```
-
-Initiative is the top of the CRD hierarchy — there is **no parent**. Don't set `parent`, `priority` (defaults to Medium), `labels`, `components`, `fixVersions`, `assignee`, or `reporter` (Jira fills it from the authenticated user).
 
 ## Important Guidelines
 

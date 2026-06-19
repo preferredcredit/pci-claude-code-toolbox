@@ -18,9 +18,7 @@ Recognized flags:
 - `--title "..."` — story summary. Drafted from context if omitted.
 - `--parent CRD-###` — parent epic key.
 - `--priority <name>` — Critical - Immediate, Highest, High, Medium, Low, Lowest. Default: leave unset (Jira defaults to Medium).
-- `--relates KEY` — create a `Relates` link to KEY. Repeatable.
-- `--blocked-by KEY` — this story **is blocked by** KEY. Repeatable.
-- `--blocks KEY` — this story **blocks** KEY. Repeatable.
+- `--link "<relationship> KEY"` — link this story to KEY using any relationship the Jira instance offers (e.g. `relates to`, `blocks`, `is blocked by`, `duplicates`, `is caused by`, `clones`). The last token is the key; the rest is the relationship phrase. Repeatable.
 
 Any other text is freeform context describing the work — use it before asking questions.
 
@@ -31,7 +29,7 @@ From `$ARGUMENTS`, work out what is already known. Then ask conversationally for
 1. **Component/area** — which system does this touch? (Established title prefixes: `NextGen BC`, `NextGen`, `Gateway`, `Core`, `Decisioning`, `Client Portal`, `Origination BC`, `PCSM`.)
 2. **What & why** — what's changing, and who benefits / what outcome it enables.
 3. **Done-when** — rough acceptance criteria, in their words. Push for at least one.
-4. **Related/blocking tickets** *(optional)* — any tickets this relates to, is blocked by, or blocks? (Or pass `--relates` / `--blocked-by` / `--blocks`.) Skip if none.
+4. **Related issues** *(optional)* — any other issues to link, and how they relate (e.g. "blocked by CRD-123", "duplicates CRD-456", "relates to CRD-789")? (Or pass `--link`.) Skip if none.
 
 Don't interrogate — at most three rounds of questions, then draft; use follow-up rounds only when an answer genuinely needs clarifying. Gaps the user can't fill become omitted sections, not boilerplate. The parent epic is handled in Step 2 — don't ask for it here.
 
@@ -45,14 +43,20 @@ Every CRD story belongs under an epic — this is the team's one universally hon
 
 For all Jira calls, pass `preferredcredit.atlassian.net` as `cloudId`. If that's rejected, call `getAccessibleAtlassianResources` and use the `id` of the resource whose `url` contains `preferredcredit.atlassian.net`.
 
-## Step 3: Resolve link types & validate targets
+## Step 3: Resolve links
 
-Skip this step entirely if no related/blocking tickets were provided.
+Skip this step entirely if no related issues were named.
 
-1. **Resolve link type names.** Call `getIssueLinkTypes`. Capture the canonical `name` of the `Relates` type (also accept the sort-prefixed `1Relates`) and — if any `--blocked-by`/`--blocks` targets exist — the `Blocks` type (accept sort-prefixed variants) plus its `inward`/`outward` labels for direction. If a *requested* type isn't found, report it and drop those targets; don't abort the skill.
-2. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every link key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+1. **Discover the link catalog.** Call `getIssueLinkTypes` and read each type's `name`, `inward`, and `outward` phrasings. Use whatever the instance offers — don't assume a fixed set. (PCI's instance currently includes `1Relates` [relates to], `Blocks` [blocks / is blocked by], `Duplicate` [duplicates / is duplicated by], `Cloners` [clones / is cloned by], `Problem/Incident` [causes / is caused by], and `Predecessor` [precedes / is preceded by]; the `Polaris…`, `Translation`, and `Action item` types are system-managed — ignore them unless the user explicitly asks.)
+2. **Pick the type that fits.** For each requested link, choose the type whose `inward`/`outward` phrasing best matches the relationship the user described. If nothing fits, fall back to `Relates` (`1Relates`) and say so; if the phrase is ambiguous, ask.
+3. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+4. **Fix the direction from the type's own labels.** Follow the `createIssueLink` contract exactly: `inwardIssue` is the issue that *performs* the type's **outward** verb; `outwardIssue` is the issue on the **inward** (receiving) side. (Tool's own example: *"A is blocked by B"* → `inwardIssue: B, outwardIssue: A` — B blocks, so B is inward.) From the new story's side:
+   - the story **performs** the outward verb — it *blocks / duplicates / causes / clones* the target → `inwardIssue: <NEW>, outwardIssue: <target>`
+   - the story is on the **inward** side — it *is blocked by / is caused by* the target → `inwardIssue: <target>, outwardIssue: <NEW>`
+   - symmetric types (`Relates`) → direction doesn't matter.
+   If unsure how a link will read, create one and confirm its direction in Jira before adding the rest.
 
-Carry the resolved links (type, direction, key, summary) into the preview and Step 6.
+Carry each resolved link (`type name`, `inward key`, `outward key`, display phrase) into the preview and Step 6.
 
 ## Step 4: Draft
 
@@ -86,10 +90,10 @@ answer inline — don't leave questions dangling.
 - Group by scenario/state for UI work; use Given/When/Then for complex backend behavior.
 
 ## Dependencies        ← optional
-Release-blocking external work and its ticket key. Keys passed via `--blocked-by`/`--blocks` (or named in intake) are listed here **and** created as native Jira links.
+Release-blocking external work and its ticket key. Blocking links (e.g. *is blocked by*) are listed here **and** created as native Jira links.
 ```
 
-**Reflect gathered links in the body too.** Per team preference, every related/blocking ticket also appears in the description, not only as a native link: list `--blocked-by`/`--blocks` keys under `## Dependencies` and weave `--relates` keys into `## Details`. Keep existing inline citations and Confluence / non-Jira links as markdown.
+**Reflect gathered links in the body too.** Per team preference, every linked issue also appears in the description, not only as a native link: list blocking/dependency links under `## Dependencies` and weave looser relationships (relates to, duplicates, …) into `## Details`. Keep existing inline citations and Confluence / non-Jira links as markdown.
 
 Quality bar: CRD-434 (rich backend story), CRD-202 (UI story with grouped AC), CRD-232 (functional details + answered open questions). These are reference keys for maintainers — don't fetch them during a run. Minimum bar even for small config asks: 2–3 sentences of context plus one acceptance criterion — never an empty description.
 
@@ -107,8 +111,8 @@ About to create CRD Story:
   Priority:  <name | (default)>
 
 Links to create:        ← omit this block if no links
-  • relates       → CRD-123 — <summary>
-  • is blocked by  → CRD-456 — <summary>
+  • is blocked by → CRD-456 — <summary>
+  • duplicates    → CRD-123 — <summary>
 Skipped (not found in Jira):
   • <BAD-KEY>
 
@@ -142,10 +146,16 @@ Confirmation is mandatory — there is no `--yes` flag.
 
 Omit `additional_fields` unless a non-default priority was requested. If the API rejects the top-level `parent`, retry once with `additional_fields: { "parent": { "key": "CRD-###" } }`. On `createJiraIssue` failure, surface the API error verbatim and stop — don't attempt linking.
 
-2. **Link each target** from Step 3, using the new story key as `NEW`:
-   - relates → `{ "type": { "name": "<Relates name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
-   - `--blocks` (story blocks target) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
-   - `--blocked-by` (target blocks story) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<NEW>" }, "outwardIssue": { "key": "<target>" } }`
+2. **Link each resolved target** from Step 3 by calling `createIssueLink` with the new story key, the chosen type `name`, and the inward/outward keys fixed in Step 3:
+
+```json
+{
+  "cloudId": "preferredcredit.atlassian.net",
+  "type": { "name": "<resolved link type, e.g. Blocks>" },
+  "inwardIssue": { "key": "<inward key from Step 3>" },
+  "outwardIssue": { "key": "<outward key from Step 3>" }
+}
+```
 
    Continue past per-link failures — collect them for the report.
 
