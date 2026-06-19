@@ -10,11 +10,11 @@ Each skill is **model-invocable** (Claude can surface the right one from natural
 
 | Command | Creates | Jira project | Notes |
 |---|---|---|---|
-| `/create-crd-initiative` | Initiative | CRD | Top-level theme grouping epics: goal, epic-scope checklist, decision log; peer issue links (any type) |
-| `/create-crd-epic` | Epic | CRD | Goal, scope checklist, decision log; resolves a parent Initiative; peer issue links (any type) |
-| `/create-crd-story` | Story | CRD | User story/goal, details, testable acceptance criteria; native issue links (any type) |
-| `/create-crd-task` | Task | CRD | Non-code work — decisions, analysis, data pulls, configuration; native issue links (any type) |
-| `/create-crd-bug` | Bug | CRD | Environment, test data, repro, expected vs. actual, impact; native issue links (any type) |
+| `/create-crd-initiative` | Initiative | CRD | Top-level theme grouping epics: goal, epic-scope checklist, decision log; peer links (Relates/Blocks/Predecessor/Bundle) |
+| `/create-crd-epic` | Epic | CRD | Goal, scope checklist, decision log; resolves a parent Initiative; peer links (Relates/Blocks/Predecessor/Bundle) |
+| `/create-crd-story` | Story | CRD | User story/goal, details, testable acceptance criteria; issue links (Relates/Blocks/Predecessor/Bundle) |
+| `/create-crd-task` | Task | CRD | Non-code work — decisions, analysis, data pulls, configuration; issue links (Relates/Blocks/Predecessor/Bundle) |
+| `/create-crd-bug` | Bug | CRD | Environment, test data, repro, expected vs. actual, impact; issue links (Relates/Blocks/Predecessor/Bundle) |
 | `/create-crd-change` | Change | CHANGE | Release record bundling work items as `Relates` links |
 
 ## Requirements

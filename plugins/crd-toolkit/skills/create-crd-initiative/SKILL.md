@@ -18,7 +18,7 @@ The user has provided: `$ARGUMENTS`
 
 Recognized flags:
 - `--title "..."` — initiative summary. Drafted from context if omitted.
-- `--link "<relationship> KEY"` — link this initiative to a peer issue (e.g. a related/blocking initiative) using any relationship the Jira instance offers (`relates to`, `blocks`, `is blocked by`, `duplicates`, …). The last token is the key; the rest is the relationship phrase. Repeatable.
+- `--link "<relationship> KEY"` — link this initiative to a peer issue (e.g. a related/blocking initiative). `<relationship>` is one of `relates to`, `blocks`, `is blocked by`, `precedes`, `is preceded by`, or `bundles with`. The last token is the key; the rest is the relationship phrase. Repeatable.
 
 Any other text is freeform context — use it before asking questions.
 
@@ -40,13 +40,19 @@ Skip this step entirely if no related issues were named. This covers **peer** re
 
 For all Jira calls, pass `preferredcredit.atlassian.net` as `cloudId`. If that's rejected, call `getAccessibleAtlassianResources` and use the `id` of the resource whose `url` contains `preferredcredit.atlassian.net`.
 
-1. **Discover the link catalog.** Call `getIssueLinkTypes` and read each type's `name`, `inward`, and `outward` phrasings. Use whatever the instance offers — don't assume a fixed set. (PCI's instance currently includes `1Relates` [relates to], `Blocks` [blocks / is blocked by], `Duplicate` [duplicates / is duplicated by], `Cloners` [clones / is cloned by], `Problem/Incident` [causes / is caused by], and `Predecessor` [precedes / is preceded by]; the `Polaris…`, `Translation`, and `Action item` types are system-managed — ignore them unless the user explicitly asks.)
-2. **Pick the type that fits.** For each requested link, choose the type whose `inward`/`outward` phrasing best matches the relationship the user described. If nothing fits, fall back to `Relates` (`1Relates`) and say so; if the phrase is ambiguous, ask.
-3. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
-4. **Fix the direction from the type's own labels.** Follow the `createIssueLink` contract exactly: `inwardIssue` is the issue that *performs* the type's **outward** verb; `outwardIssue` is the issue on the **inward** (receiving) side. (Tool's own example: *"A is blocked by B"* → `inwardIssue: B, outwardIssue: A` — B blocks, so B is inward.) From the new initiative's side:
-   - the initiative **performs** the outward verb — it *blocks / duplicates* the target → `inwardIssue: <NEW>, outwardIssue: <target>`
-   - the initiative is on the **inward** side — it *is blocked by* the target → `inwardIssue: <target>, outwardIssue: <NEW>`
-   - symmetric types (`Relates`) → direction doesn't matter.
+This skill links with **four** relationship types only — map what the user describes to one of these, and use no others:
+
+- **`Relates`** — a loose association ("relates to"); symmetric.
+- **`Blocks`** — "blocks" / "is blocked by".
+- **`Predecessor`** — "precedes" / "is preceded by".
+- **`Bundle Work`** — "bundles with" / "is bundled with".
+
+1. **Resolve canonical names.** Call `getIssueLinkTypes` and capture the live `name` plus `inward`/`outward` labels for each of the four you need — accept sort-prefixed variants (e.g. `Relates` is stored as `1Relates`). If the user's phrase doesn't map to one of the four, fall back to `Relates` and say so (or ask); if a needed type isn't present in the instance, report it and drop those targets — don't abort.
+2. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+3. **Fix the direction from the type's own labels.** Follow the `createIssueLink` contract exactly: `inwardIssue` is the issue that *performs* the type's **outward** verb; `outwardIssue` is the issue on the **inward** (receiving) side. (Tool's own example: *"A is blocked by B"* → `inwardIssue: B, outwardIssue: A` — B blocks, so B is inward.) From the new initiative's side:
+   - the initiative **performs** the outward verb — it *blocks / precedes / bundles with* the target → `inwardIssue: <NEW>, outwardIssue: <target>`
+   - the initiative is on the **inward** side — it *is blocked by / is preceded by* the target → `inwardIssue: <target>, outwardIssue: <NEW>`
+   - `Relates` is symmetric → direction doesn't matter.
    If unsure how a link will read, create one and confirm its direction in Jira before adding the rest.
 
 Carry each resolved link (`type name`, `inward key`, `outward key`, display phrase) into the preview and Step 5.
