@@ -1,8 +1,7 @@
 ---
 name: create-crd-task
-description: Creates a Task in PCI's Jira CRD project (Credit Risk & Decisioning) using the stream team's standard format — context, concrete ask, inputs, and deliverable. For non-code work like decisions, analysis, data pulls, and configuration. Use ONLY when the user explicitly invokes /create-crd-task. Never auto-trigger on natural language.
-disable-model-invocation: true
-allowed-tools: AskUserQuestion, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getAccessibleAtlassianResources, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getJiraIssue, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__searchJiraIssuesUsingJql, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__createJiraIssue
+description: Creates a Task in PCI's Jira CRD project (Credit Risk & Decisioning) for non-code work — decisions, tradeoff analysis, spikes/data pulls, AccountMate/client configuration, documentation, coordination. Invoke when the user wants to create/file a CRD task for non-implementation work. Code/system changes → create-crd-story; defects → create-crd-bug. Also runnable via /create-crd-task. Always previews and requires explicit confirmation before writing to Jira.
+allowed-tools: AskUserQuestion, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getAccessibleAtlassianResources, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getJiraIssue, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__searchJiraIssuesUsingJql, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__createJiraIssue, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getIssueLinkTypes, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__createIssueLink
 ---
 
 # Create CRD Task
@@ -19,6 +18,9 @@ Recognized flags:
 - `--title "..."` — task summary. Drafted from context if omitted.
 - `--parent CRD-###` — parent epic key.
 - `--priority <name>` — Critical - Immediate, Highest, High, Medium, Low, Lowest. Default: leave unset (Jira defaults to Medium).
+- `--relates KEY` — create a `Relates` link to KEY. Repeatable.
+- `--blocked-by KEY` — this task **is blocked by** KEY. Repeatable.
+- `--blocks KEY` — this task **blocks** KEY. Repeatable.
 
 Any other text is freeform context — use it before asking questions.
 
@@ -28,6 +30,7 @@ From `$ARGUMENTS`, work out what is already known. Then ask conversationally for
 
 1. **The ask** — what exactly needs to be done, decided, analyzed, or configured? For spikes: is there a timebox?
 2. **Deliverable** — where does the output land? A recorded decision, an updated Confluence doc, follow-up stories created, settings applied?
+3. **Related/blocking tickets** *(optional)* — any tickets this relates to, is blocked by, or blocks? (Or pass `--relates` / `--blocked-by` / `--blocks`.) Skip if none.
 
 Ask about context (why now, related links) and exact inputs (client numbers, AM question/setting values, date ranges) only when the draft would be empty without them — otherwise those sections are simply omitted.
 
@@ -42,7 +45,16 @@ Parent epics are encouraged for Tasks but not mandatory.
 
 For all Jira calls, pass `preferredcredit.atlassian.net` as `cloudId`. If that's rejected, call `getAccessibleAtlassianResources` and use the `id` of the resource whose `url` contains `preferredcredit.atlassian.net`.
 
-## Step 3: Draft
+## Step 3: Resolve link types & validate targets
+
+Skip this step entirely if no related/blocking tickets were provided.
+
+1. **Resolve link type names.** Call `getIssueLinkTypes`. Capture the canonical `name` of the `Relates` type (also accept the sort-prefixed `1Relates`) and — if any `--blocked-by`/`--blocks` targets exist — the `Blocks` type (accept sort-prefixed variants) plus its `inward`/`outward` labels for direction. If a *requested* type isn't found, report it and drop those targets; don't abort the skill.
+2. **Validate each target.** Call `getJiraIssue` (fields `summary`, `issuetype`, `status`) for every link key. Keys that don't resolve go to a `missing[]` list shown in the preview — never link them, never guess corrections.
+
+Carry the resolved links (type, direction, key, summary) into the preview and Step 6.
+
+## Step 4: Draft
 
 **Title:** verb-first, 4–10 words, no component prefix (that's a Story convention). Lead with the action verb the team already uses — `Define`, `Decide`, `Determine`, `Analyze`, `Confirm`, `Gather`, `Set up`, `Update` — plus the object and milestone qualifier, e.g. `Determine pilot client strategies for CRS24 CFS MVP`. Avoid bare question titles like "Is this needed?" — name the thing.
 
@@ -67,6 +79,8 @@ Where the output lands: decision recorded, Confluence doc updated,
 follow-up Stories created, or settings applied.
 ```
 
+**Reflect gathered links in the body too.** Per team preference, every related/blocking ticket also appears in the description, not only as a native link — list them in `## Context`. Keep existing inline citations and Confluence / non-Jira links as markdown.
+
 Quality bar: CRD-424 (phased analysis with deliverable), CRD-233 (exact question details), CRD-7 (timeboxed spike with precise data request). These are reference keys for maintainers — don't fetch them during a run. Anti-pattern to avoid: descriptions that only say who will figure out the work later.
 
 For decision-type Tasks, add a closing-convention note at the end of the description:
@@ -75,7 +89,7 @@ For decision-type Tasks, add a closing-convention note at the end of the descrip
 _When resolved, append: DECISION: <outcome> — per <person>, <date>._
 ```
 
-## Step 4: Preview, refine, confirm
+## Step 5: Preview, refine, confirm
 
 Show **one** preview — metadata plus the full draft:
 
@@ -88,6 +102,12 @@ About to create CRD Task:
   Parent:    <CRD-### — epic summary | (none)>
   Priority:  <name | (default)>
 
+Links to create:        ← omit this block if no links
+  • relates       → CRD-123 — <summary>
+  • is blocked by  → CRD-456 — <summary>
+Skipped (not found in Jira):
+  • <BAD-KEY>
+
 --- Description ---
 <full markdown>
 ```
@@ -99,9 +119,9 @@ Then ask: **"Create this Task, or what would you refine?"**
 
 Confirmation is mandatory — there is no `--yes` flag.
 
-## Step 5: Create and report
+## Step 6: Create, link, and report
 
-Call `createJiraIssue`:
+1. **Create.** Call `createJiraIssue`:
 
 ```json
 {
@@ -116,15 +136,30 @@ Call `createJiraIssue`:
 }
 ```
 
-Omit `additional_fields` unless a non-default priority was requested. If the API rejects the top-level `parent`, retry once with `additional_fields: { "parent": { "key": "CRD-###" } }`.
+Omit `additional_fields` unless a non-default priority was requested. If the API rejects the top-level `parent`, retry once with `additional_fields: { "parent": { "key": "CRD-###" } }`. On `createJiraIssue` failure, surface the API error verbatim and stop — don't attempt linking.
 
-On success report: `Task created: https://preferredcredit.atlassian.net/browse/<KEY>`. On failure, surface the API error verbatim and stop.
+2. **Link each target** from Step 3, using the new task key as `NEW`:
+   - relates → `{ "type": { "name": "<Relates name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
+   - `--blocks` (task blocks target) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<target>" }, "outwardIssue": { "key": "<NEW>" } }`
+   - `--blocked-by` (target blocks task) → `{ "type": { "name": "<Blocks name>" }, "inwardIssue": { "key": "<NEW>" }, "outwardIssue": { "key": "<target>" } }`
+
+   Continue past per-link failures — collect them for the report.
+
+3. **Report:**
+
+```
+Task created: https://preferredcredit.atlassian.net/browse/<KEY>
+
+Linked <S>/<T> related items.        ← omit if no links
+Failed links (if any):
+  • <KEY>: <reason>
+```
 
 ## Important Guidelines
 
-- **Strict trigger.** Only respond to explicit `/create-crd-task` invocation.
+- **Trigger.** Model-invocable: fire when the user wants to create/file a CRD task for non-code work (or runs `/create-crd-task`). Don't fire on mere discussion — only when a ticket is actually wanted. Code/system changes → `/create-crd-story`; a defect → `/create-crd-bug`. Confirmation before any Jira write remains mandatory.
 - **Confirmation is mandatory.** No Jira writes without an explicit `yes` at the preview.
-- **Never fabricate Jira keys** — validate the parent epic; never guess corrections.
+- **Never fabricate Jira keys** — validate the parent epic and every link target; unresolved keys are reported in the preview, never guessed.
 - **Omit, don't pad.** A missing section beats canned filler. But Task and Deliverable are the minimum — a one-line question is not a description.
 - **Right type for the work.** If intake reveals this is actually a code/system change, steer to `/create-crd-story`; a defect, `/create-crd-bug`.
 - **Don't set unused fields.** Labels, components, fix versions, story points, sprint, assignee — none are set at create time on this board (sprint and assignee are handled on the board after creation). Reporter defaults to the authenticated user; don't set it.
