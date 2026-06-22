@@ -1,7 +1,7 @@
 {
   "name": "crd-toolkit",
   "description": "Credit Risk & Decisioning (CRD) team toolkit — Jira skills for creating CRD epics, stories, tasks, bugs, and release Changes in PCI's standard formats.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "PCI"
   },

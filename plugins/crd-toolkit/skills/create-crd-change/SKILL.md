@@ -1,7 +1,6 @@
 ---
 name: create-crd-change
-description: Creates a "Change" issue in PCI's Jira CHANGE project that bundles implemented work items (provided explicitly and/or scraped from git commits on named branches) as Relates links. Use ONLY when the user explicitly invokes /create-crd-change. Never auto-trigger on natural language.
-disable-model-invocation: true
+description: Creates a Change (release record) in PCI's Jira CHANGE project that bundles implemented work items (given explicitly and/or scraped from git commits on named branches) as Relates links, with collaborative Validation/Release/Rollback narrative. Invoke when the user wants to create a Change or release record for shipped work. Also runnable via /create-crd-change. Always previews and requires explicit confirmation before writing to Jira.
 allowed-tools: Read, Bash, AskUserQuestion, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getAccessibleAtlassianResources, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getJiraIssueTypeMetaWithFields, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getIssueLinkTypes, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__getJiraIssue, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__createJiraIssue, mcp__818f7cdc-591c-45c2-94ed-e07f62819c00__createIssueLink
 ---
 
@@ -333,7 +332,7 @@ Department/area codes. This skill always uses **SOFTDEV** (software development)
 
 ## Important Guidelines
 
-- **Strict trigger.** Only respond when the user explicitly invokes `/create-crd-change`. Never auto-fire on natural language mentioning Jira, change, or release.
+- **Trigger.** Model-invocable: fire when the user wants to create a Change or release record for shipped work (or runs `/create-crd-change`). Don't fire on mere mentions of Jira, a change, or a release — only when a release record is actually wanted. Confirmation before any Jira write remains mandatory.
 - **Never create subtasks.** The Jira workflow auto-spawns a `Change Approval Sub-task`. The skill must not create subtasks of any kind.
 - **Never fabricate Jira keys.** If `--key` references something that doesn't exist, exclude it from the link list and call it out in the preview. Do not guess corrections.
 - **Confirmation is mandatory.** Always show the preview and require an explicit `yes`/`y` before any write to Jira.
