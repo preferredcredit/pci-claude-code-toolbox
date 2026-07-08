@@ -24,11 +24,11 @@ When work touches a repo not listed in `repos.md`, obtain its clone URL — from
 
 ## NuGet Dependencies
 
-Packages come from remote feeds only. No local package workflow.
+Packages normally come from remote feeds. Some repos additionally support a local package refresh workflow for cross-repo testing (e.g. a `RefreshLocalPackages.ps1` + local NuGet source) — check the repo's own CLAUDE.md. The remote merge-order gate still applies: a consumer PR's CI fails until the producer package is published.
 
 If work requires NuGet package changes:
 1. Document in Discussion
-2. Wait for package publish
+2. Wait for package publish (or use the repo's local refresh workflow for pre-publish testing)
 3. Update references and continue
 
 **UI Stubbing:** If UI depends on pending package changes, create stubs marked with `// TODO: Remove stub when [PackageName] published`. Don't stub if it isn't necessary.
