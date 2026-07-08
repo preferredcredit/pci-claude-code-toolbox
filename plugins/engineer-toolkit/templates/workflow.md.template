@@ -64,11 +64,7 @@ When modifying NextGen.Gateway.Client or NextGen.Gateway.Server:
 ```
 <workspace>\
   PlanningWorkspace\            # Shared read-only repos (always on main)
-    NextGenOrig\
-    Gateway.Web\
-    CustomerEngagement.Web\
-    ClientPortal.Sidecar.Web\
-    Origination\
+    <repo>\                      # One folder per registered repo (see PlanningWorkspace\repos.md)
   Active\
     <KEY>-###\                  # Ticketed work (Jira-keyed, e.g. CO-322, CRD-100)
       <KEY>-###.md              # Issue file (lean)
@@ -94,9 +90,9 @@ When modifying NextGen.Gateway.Client or NextGen.Gateway.Server:
 
 Location: `<workspace>\PlanningWorkspace\`
 
-Contains full clones of all repos, always on main branch. Updated before planning phases.
+Contains full clones of the repos, always on main branch. Updated before planning phases.
 
-**See `PlanningWorkspace\CLAUDE.md` for repo URLs and tech details.**
+**See `PlanningWorkspace\repos.md` for repo URLs and tech details.**
 
 **Rules:**
 - READ ONLY - never modify files

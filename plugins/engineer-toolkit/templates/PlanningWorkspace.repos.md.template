@@ -1,0 +1,23 @@
+# PlanningWorkspace - Repo Registry
+
+**User-owned.** The plugin never overwrites this file (`/workspace-init refresh` leaves it untouched). It starts empty and grows organically: when work touches a repo not listed here, the agent obtains the clone URL (from the ticket, the user, or an existing clone's `git remote get-url origin`) and appends a row before proceeding.
+
+## Repositories
+
+| Repo | Clone URL | Purpose |
+|------|-----------|---------|
+
+<!-- Example row:
+| MyApp.Web | https://tfs.example.net/DefaultCollection/MyProject/_git/MyApp.Web | Customer-facing app (.NET 9, Blazor) |
+-->
+
+## Quick Reference: Which Repo?
+
+Optional task→repo routing hints. Append rows when planning reveals where a kind of task lives.
+
+| Task | Repo | Start Here |
+|------|------|------------|
+
+<!-- Example row:
+| Add API endpoint | MyApp.Api | Find existing endpoint in same feature area |
+-->

@@ -116,7 +116,7 @@ If the default path exists, classify it by checking for files in this order:
 | Detected | Classification | Refresh behavior |
 |---|---|---|
 | `<workspace>\.engineer-toolkit\VERSION` exists and matches plugin version | **Up to date** | `refresh` is a no-op — offer to skip |
-| `<workspace>\.engineer-toolkit\VERSION` exists but older than plugin version | **Doctrine out of date** | `refresh` overwrites `workflow.md` + `VERSION` only; CLAUDE.md untouched |
+| `<workspace>\.engineer-toolkit\VERSION` exists but older than plugin version | **Doctrine out of date** | `refresh` overwrites `workflow.md`, `VERSION`, and `PlanningWorkspace\CLAUDE.md`; root `CLAUDE.md` and `PlanningWorkspace\repos.md` untouched |
 | `<workspace>\.engineer-toolkit\` missing AND `<workspace>\CLAUDE.md` exists | **Pre-split workspace** | Migration path (see below) |
 | None of `<workspace>\CLAUDE.md`, `Active\`, `Complete\` present | **Empty-ish** | Treat as new — skip to Phase 2 |
 
@@ -126,9 +126,12 @@ The plugin version comes from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`
 
 ```
 Workspace at <path>: <classification tag>
-  refresh        — overwrite <workspace>\.engineer-toolkit\workflow.md and VERSION with the
-                   latest plugin doctrine. CLAUDE.md, Active\, Complete\, Archive\ are never
-                   touched.
+  refresh        — overwrite <workspace>\.engineer-toolkit\workflow.md, VERSION, and
+                   <workspace>\PlanningWorkspace\CLAUDE.md with the latest plugin doctrine.
+                   Your CLAUDE.md, PlanningWorkspace\repos.md, Active\, Complete\, Archive\
+                   are never touched. (First refresh after upgrading may extract an old repo
+                   table into PlanningWorkspace\repos.md and leave a
+                   CLAUDE.md.bak-<timestamp> backup.)
   pick-different — choose a different workspace path.
   cancel         — exit without changes.
 ```
@@ -150,6 +153,7 @@ When `.engineer-toolkit\` is missing but `CLAUDE.md` exists, the workspace was c
      - Back up the existing CLAUDE.md to CLAUDE.md.bak-<YYYYMMDDHHMMSS>.
      - Write a new minimal CLAUDE.md (Configuration table + one @import line).
      - Write <workspace>\.engineer-toolkit\workflow.md (plugin doctrine, managed file).
+     - Write <workspace>\PlanningWorkspace\CLAUDE.md (plugin doctrine) and, if your old PlanningWorkspace\CLAUDE.md had a repo table, extract it to PlanningWorkspace\repos.md first (old file backed up).
      - Write <workspace>\.engineer-toolkit\VERSION.
    Active\, Complete\, Archive\ are untouched.
    Type `migrate` to proceed, anything else to cancel.
@@ -179,13 +183,15 @@ Prompt for two values (one at a time, via AskUserQuestion or chat):
 
 The plugin's templates live at `${CLAUDE_PLUGIN_ROOT}/templates/` (`CLAUDE_PLUGIN_ROOT` is set by Claude Code when a plugin's skill runs). The plugin version comes from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` → `version`.
 
-There are three layers of ownership in this scaffold:
+Ownership layers in this scaffold:
 
 | File | Owner | Refresh behavior |
 |---|---|---|
 | `<workspace>\CLAUDE.md` | User | Never overwritten on `refresh`. Only written when missing or during one-time migration (with backup). |
 | `<workspace>\.engineer-toolkit\workflow.md` | Plugin | Always overwritten on `refresh`. No diff. No backup. |
 | `<workspace>\.engineer-toolkit\VERSION` | Plugin | Always overwritten on `refresh`. Single-line plain text matching the plugin version. |
+| `<workspace>\PlanningWorkspace\CLAUDE.md` | Plugin | Always overwritten on `refresh` (doctrine only — no user data lives here). |
+| `<workspace>\PlanningWorkspace\repos.md` | User | Written from template only when missing. Never overwritten. |
 
 ### Steps
 
@@ -214,10 +220,16 @@ There are three layers of ownership in this scaffold:
    - Plain text, single line: the plugin version (e.g. `2.0.0`). No trailing newline issues — the file is one logical line.
    - Overwrite unconditionally.
 
-5. **Write `<workspace>\PlanningWorkspace\CLAUDE.md`** (conditional):
-   - Read `${CLAUDE_PLUGIN_ROOT}/templates/PlanningWorkspace.CLAUDE.md.template`.
-   - Substitute `<workspace>` references where the template uses them.
-   - Write only if missing OR if Phase 1 chose `refresh`. This file is small (repo URLs + NuGet conventions) and currently all org-wide — no user-data half to extract — so it follows the same plugin-managed pattern as `workflow.md` for refresh, but stays at its historical path for now.
+5. **Write `<workspace>\PlanningWorkspace\CLAUDE.md`** (plugin-managed):
+   - **Backup + extraction check first:**
+     - If no existing file: just write from the template (next bullet).
+     - If an existing file's content differs from what will be written: ALWAYS back it up to `<workspace>\PlanningWorkspace\CLAUDE.md.bak-<YYYYMMDDHHMMSS>` before overwriting — regardless of whether the extraction below applies.
+     - **One-time extraction:** if the existing file contains a `## Repositories` section AND `<workspace>\PlanningWorkspace\repos.md` does not exist, this is a pre-registry file — extract the `## Repositories` table (and the `## Quick Reference: Which Repo?` table if present) into `<workspace>\PlanningWorkspace\repos.md` (template shape from `${CLAUDE_PLUGIN_ROOT}/templates/PlanningWorkspace.repos.md.template`, with the extracted rows replacing the commented examples). If the old file held extra user content beyond doctrine + those tables (e.g. coding patterns), tell the user in the Phase 4 summary that it survives only in the backup and recommend moving it to `<workspace>\.claude\rules\`.
+   - Then read `${CLAUDE_PLUGIN_ROOT}/templates/PlanningWorkspace.CLAUDE.md.template` and write it as-is — do NOT substitute `<workspace>`; the token is defined symbolically inside the file. Overwrite on `refresh` like `workflow.md`.
+
+6. **Write `<workspace>\PlanningWorkspace\repos.md`** (user-owned, conditional):
+   - Only if the file does not exist (and step 5's extraction didn't just create it): read `${CLAUDE_PLUGIN_ROOT}/templates/PlanningWorkspace.repos.md.template` and write it as-is.
+   - Never overwritten on `refresh`.
 
 Path-scoped rules under `<workspace>\.claude\rules\` are NOT scaffolded by this skill. Engineers typically have team- or repo-specific coding rules they want to manage themselves; this plugin doesn't ship opinionated defaults. If you want rules, drop your own files into `.claude\rules\` (see https://code.claude.com/docs/en/memory#path-specific-rules for format).
 
@@ -227,9 +239,9 @@ Print a one-line headline followed by labeled file lists. Only print the section
 
 | Flow | Headline | Sections to include |
 |---|---|---|
-| New workspace | `Workspace ready at <workspace>.` | `Created:` (all 9 scaffolded paths), then `Next steps:` (the 4 entry-point commands below) |
-| Refresh | `Workspace at <workspace> refreshed (v<old> → v<new>).` | `Updated:` (workflow.md, VERSION), `Untouched (user-owned):` (CLAUDE.md) |
-| Pre-split migration | `Workspace at <workspace> migrated to plugin v<plugin-version>.` | `Backed up:` (CLAUDE.md.bak-<timestamp>), `Created:` (.engineer-toolkit/ + contents), `Rewrote:` (CLAUDE.md) |
+| New workspace | `Workspace ready at <workspace>.` | `Created:` (all 10 scaffolded paths), then `Next steps:` (the 4 entry-point commands below) |
+| Refresh | `Workspace at <workspace> refreshed (v<old> → v<new>).` | `Updated:` (workflow.md, VERSION, PlanningWorkspace\CLAUDE.md), `Created:` (`PlanningWorkspace\repos.md`, when the step-5 extraction ran), `Backed up:` (`PlanningWorkspace\CLAUDE.md.bak-<timestamp>`, when the step-5 backup ran), `Untouched (user-owned):` (CLAUDE.md, PlanningWorkspace\repos.md) |
+| Pre-split migration | `Workspace at <workspace> migrated to plugin v<plugin-version>.` | `Backed up:` (CLAUDE.md.bak-<timestamp>), `Created:` (.engineer-toolkit/ + contents, plus PlanningWorkspace\repos.md when the step-5 extraction ran), `Rewrote:` (CLAUDE.md) |
 
 `Created:` and `Updated:` list paths with a brief parenthetical for plugin-managed files (e.g. `.engineer-toolkit\workflow.md   (plugin-managed doctrine)`).
 
