@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Task, mcp__plugin_atlassian_atlassian__atlassianUserInfo, mcp__plugin_atlassian_atlassian__getJiraIssue, mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 ---
 
-<!-- Distribution copy. Canonical source: the ClaudeWorkspace project skill of the same name; sync deliberately. Last sync: 2026-06-09. -->
+<!-- Distribution copy. Canonical source: the ClaudeWorkspace project skill of the same name; sync deliberately. Last sync: 2026-07-08. -->
 
 In this skill, `<workspace>` refers to the Workspace path defined in the workspace `CLAUDE.md` `## Configuration` block. `<CloudId>` refers to the Jira CloudId from the same block.
 
@@ -136,6 +136,7 @@ Bucket every Active item into exactly one of these groups based on the issue fil
 |--------|----------------|---------------|
 | **Merge & transition Jira** | `Status: Development Complete` | merge PR, then move Jira |
 | **Review PR** | `Status: Code Review` | PR awaiting your review |
+| **Review spec** | `Status: Spec Review` | spec.md awaiting your review (Full tier) — add `go` to approve and advance to planning |
 | **Review plan** | `Status: Plan Review` | plan.md awaiting your review — add `go` to approve and advance to Development |
 | **Resume dev** | `Status: Development` (or `In Development`) AND file has no `go` line | add `go` to resume |
 | **Kick off planning** | `Status: Planning` AND file has no `go` line AND no `plan.md` exists | add `go` to start planning |

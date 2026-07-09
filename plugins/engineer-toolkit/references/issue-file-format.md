@@ -15,7 +15,7 @@ all defer to this file — do not duplicate the template elsewhere.
 go
 # [Issue Title]
 
-Status: Planning | Plan Review | Development | Code Review | Development Complete | Complete
+Status: Planning | Spec Review | Plan Review | Development | Code Review | Development Complete | Complete
 Tier: Trivial | Standard | Full
 Priority: High | Medium | Low
 Branch: [link]

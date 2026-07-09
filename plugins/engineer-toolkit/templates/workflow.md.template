@@ -112,7 +112,7 @@ Bash(cd <workspace>/PlanningWorkspace && for dir in */; do (cd "$dir" && git fet
 go
 # [Issue Title]
 
-Status: Planning | Plan Review | Development | Code Review | Development Complete | Complete
+Status: Planning | Spec Review | Plan Review | Development | Code Review | Development Complete | Complete
 Tier: Trivial | Standard | Full
 Priority: High | Medium | Low
 Branch: [link]
@@ -166,13 +166,14 @@ Local issue files have **two** status fields with very different ownership:
 | Status | Meaning | `/work` action |
 |--------|---------|----------------|
 | Planning | Claude researching/designing | Dispatch triage/planning per Tier |
+| Spec Review | spec.md written (Full tier only), awaiting human approval — this gate is never skipped by triage confidence | None until `go` re-added; then write plan.md and either continue through Development (recorded triage confidence ≥ 80) or stop at Plan Review (< 80) |
 | Plan Review | plan.md written, awaiting human approval | None until `go` re-added; then advance to Development |
 | Development | Claude coding (branch exists) | Resume dev subagent |
 | Code Review | PR created, waiting for human review | None when unflagged. **With `go` set:** read the file and act — address recorded PR feedback (resume dev), else report and ask. `go` is never ignored. |
 | Development Complete | Local work done, awaiting Jira transition | None when unflagged. With `go` set: read the file and do any described follow-up, else report state. |
 | Complete | Done locally — sweep eligible | Swept by `/status` (no dispatch) |
 
-`Plan Review` and `Code Review` are deliberately distinct gates: re-adding `go` to a `Plan Review` item approves the plan and advances it to Development; `Code Review` means the PR awaits your review in Azure DevOps. **The `go` flag is always the work signal — a `go`-flagged item is never skipped on account of its status.**
+`Spec Review`, `Plan Review`, and `Code Review` are deliberately distinct gates: re-adding `go` to a `Spec Review` item approves the spec and routes it into planning; re-adding `go` to a `Plan Review` item approves the plan and advances it to Development; `Code Review` means the PR awaits your review in Azure DevOps. **The `go` flag is always the work signal — a `go`-flagged item is never skipped on account of its status.**
 
 `In Development` is also accepted as a synonym for `Development` (Jira's spelling). Files may carry `QA`, `QA Complete`, or `Deployed` as local statuses for parity; unflagged they sit idle, `go`-flagged they get read-and-acted-on like any other.
 

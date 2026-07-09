@@ -36,16 +36,23 @@ confidence.
 
 In a **targeted** session the user confirms when confidence < 80 (≥ 80 proceeds with a
 heads-up); in a **full pass**, ≥ 80 auto-advances through the tier's phases and < 80
-writes the tier, removes `go`, and stops for the user. Tier is locked once written;
-user can retriage by editing the file and re-flagging `go`.
+writes the tier, removes `go`, and stops for the user. Exception: on **Full tier the
+spec gate is never auto-advanced past** — the run always stops at `Status: Spec Review`
+after writing spec.md (see Phase 2). Tier is locked once written; user can retriage by
+editing the file and re-flagging `go`.
 
 ## Phase 2: Spec (Full tier only)
 
 Invokes `superpowers:brainstorming`. Output saved to `Active\<KEY>\spec.md`. (The
 skill's default location is `docs/superpowers/specs/...`; override to the issue folder.)
 
-Targeted: spec is built interactively in the session. Full pass: dispatched subagent
-builds spec autonomously and Discussion captures the summary.
+Targeted: spec is built interactively in the session; spec approval is a chat turn.
+Full pass: dispatched subagent builds spec autonomously, Discussion captures the
+summary, then the run **always stops at the spec gate** — set `Status: Spec Review`,
+remove `go`. The user reviews (and optionally edits) spec.md and re-adds `go` to
+approve; the next `/work` cycle picks up at Phase 3. No triage confidence score skips
+this gate: Full tier exists because requirements are ambiguous, and tier confidence
+measures "is Full the right tier?", not "is the solution understood?".
 
 ## Phase 3: Plan (Standard + Full tiers)
 
@@ -54,7 +61,10 @@ Invokes `superpowers:writing-plans`. Output saved to `Active\<KEY>\plan.md`.
 Targeted: plan is reviewed conversationally in the session. Full pass: subagent
 finishes plan, sets `Status: Plan Review`, removes `go` — user reviews plan.md and
 re-adds `go` to approve, which advances the item to Development on the next `/work`
-cycle (unless triage confidence ≥ 80 auto-advanced past this gate).
+cycle. The plan-review pause is skipped when: **Standard tier** — triage confidence
+≥ 80 auto-advanced; **Full tier** — the `[Triage]` Discussion entry records confidence
+≥ 80 and the user just approved the spec (spec approval + high-confidence triage stand
+in for plan review). Unlike the spec gate, plan review is confidence-skippable.
 
 ## Phase 4: Execute (all tiers)
 

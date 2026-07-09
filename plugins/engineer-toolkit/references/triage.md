@@ -35,7 +35,9 @@ THRESHOLD = 80   (integer, 0–100)
 ### Auto-advance by mode
 
 **Full pass (`/work`, autonomous):**
-- **≥ 80** — proceed in the same run without stopping: run the tier's phases end-to-end (Full: `brainstorming` → `writing-plans` → execute; Standard: `writing-plans` → execute; Trivial: execute), then Review and Wrap. The high-confidence triage also stands in for the plan-review gate — do **not** pause for human plan approval. The item keeps its `go` line until the run reaches its terminal state (Code Review / Development Complete).
+- **≥ 80** — proceed in the same run without stopping, **up to the tier's hard gate**:
+  - **Trivial:** execute → Review → Wrap. **Standard:** `writing-plans` → execute → Review → Wrap — the high-confidence triage stands in for the plan-review gate; do not pause for plan approval. The item keeps its `go` line until the run reaches its terminal state (Code Review / Development Complete).
+  - **Full:** `brainstorming` → write spec.md → set `Status: Spec Review`, **remove `go`, and stop.** The spec gate is never auto-advanced past, whatever the confidence — tier confidence measures "is Full the right tier?", not "is the solution understood?". When the user approves the spec (re-adds `go`), the `Spec Review` dispatch row resumes: `writing-plans`, then straight through execute → Review → Wrap if the recorded confidence was ≥ 80 (spec approval + high-confidence triage stand in for plan review), else stop at `Plan Review`.
 - **< 80** — write `Tier:`, log the `[Triage]` entry with open questions, **remove the `go` line, and stop.** The user reviews and re-adds `go` to continue.
 
 **Targeted (`/work <item>`, focused session in chat):**
@@ -43,7 +45,7 @@ THRESHOLD = 80   (integer, 0–100)
   ```
   Triage: <Tier> (confidence <n>). <one-line rationale> — proceeding.
   ```
-  (The item's `go` flag was already cleared when the session claimed it; progression is conversational, not `go`-gated.)
+  (The item's `go` flag was already cleared when the session claimed it; progression is conversational, not `go`-gated. On Full tier the spec gate still applies as a chat turn: present spec.md for review and wait for approval before writing the plan.)
 - **< 80** — fall back to the interactive confirm prompt (a chat turn):
   ```
   Proposed tier: <Trivial|Standard|Full>
