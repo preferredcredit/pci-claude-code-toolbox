@@ -164,7 +164,22 @@ $items = foreach ($d in $dirs) {
     $issueFile = Join-Path $d.FullName "$($d.Name).md"
     if (-not (Test-Path $issueFile)) { continue }
 
-    $raw   = Get-Content -LiteralPath $issueFile -Raw
+    # One unreadable item must not take down the whole scan — emit an error row and keep going.
+    try {
+        $raw = Get-Content -LiteralPath $issueFile -Raw
+    } catch {
+        [pscustomobject]@{
+            dir        = $d.Name
+            goFlagged  = $false
+            queued     = $false
+            status     = $null
+            priority   = $null
+            tier       = $null
+            ticketed   = $false
+            error      = $_.Exception.Message
+        }
+        continue
+    }
     $lines = $raw -split "\r?\n"
 
     $firstNonEmpty = ($lines | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)

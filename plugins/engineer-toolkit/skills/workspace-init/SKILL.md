@@ -131,7 +131,7 @@ Workspace at <path>: <classification tag>
                    Your CLAUDE.md, PlanningWorkspace\repos.md, Active\, Complete\, Archive\
                    are never touched. (First refresh after upgrading may extract an old repo
                    table into PlanningWorkspace\repos.md and leave a
-                   CLAUDE.md.bak-<timestamp> backup.)
+                   PlanningWorkspace\CLAUDE.md.bak-<timestamp> backup.)
   pick-different — choose a different workspace path.
   cancel         — exit without changes.
 ```
