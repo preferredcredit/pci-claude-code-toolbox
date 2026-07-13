@@ -2,7 +2,7 @@
 
 The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 
-- **Workflow** — Jira-driven dev loop: triage, plan, execute, smoke, QA. Day-to-day driver.
+- **Workflow** — Jira-driven dev loop: triage, plan, execute, local-test, QA. Day-to-day driver.
 - **Review** — Pre/post-PR code & architecture review agents. Run on demand.
 
 ## Quick start (workflow surface)
@@ -21,7 +21,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 | `/work` | Queue runner — process `go`-flagged items autonomously, or work one named item as a focused in-chat session via `/work <key-or-hint>` (a not-yet-local Jira key is imported + triaged inline). Local-first, fast. Requires VPN to the on-prem git server; Jira transitions during dispatch are best-effort. |
 | `/status` | Discovery + housekeeping — refresh PlanningWorkspace, sync Jira Status onto local files, sweep completed items, print the dashboard (chat + HTML), suggest next work, surface unimported Jira tickets. No dispatch. Requires Atlassian. |
 | `/adhoc <slug> "<title>"` | Create a new unticketed work item using a kebab-case slug. |
-| `/smoke <KEY>` | Run a local Playwright walk-through of the ticket's acceptance criteria against your dev branch. |
+| `/local-test <KEY>` | Run a local Playwright walk-through of the ticket's acceptance criteria against your dev branch. Formerly `/smoke`. |
 | `/qa <KEY> <env>` | End-to-end QA verification across the multi-app ecosystem (dev / qa / staging). |
 | `/create-change-issue` | Shape and create a CAB ticket in the CHANGE Jira project. |
 
@@ -37,7 +37,7 @@ The PCI engineer's daily-driver Claude Code plugin. Two surfaces in one bag:
 - **code-reviewer** (Sonnet) — Bugs, security, performance, maintainability. Read-only.
 - **architect-review** (Opus) — Design decisions, system boundaries, cost-of-change. Read-only with Mermaid diagrams.
 - **architect** (Opus) — General-purpose architectural judgment: sizing/triage (used by `/work` Phase 1), design review, trade-offs, risk. Read-only.
-- **playwright-driver** (Sonnet) — Headless Playwright driver. Walks a fixed plan against a running web app, tails logs, returns a verdict. Dispatched by /smoke today; designed to be reusable by any orchestrator that can supply the documented inputs.
+- **playwright-driver** (Sonnet) — Headless Playwright driver. Walks a fixed plan against a running web app, tails logs, returns a verdict. Dispatched by /local-test today; designed to be reusable by any orchestrator that can supply the documented inputs.
 
 ## Prerequisites
 

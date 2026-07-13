@@ -1,6 +1,6 @@
 # Argument Resolution
 
-Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/smoke`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
+Standard algorithm for resolving `<arg>` to a single workspace directory across the orchestrator skills (`/local-test`, `/qa`). Resolution runs BEFORE any VPN / network probe so that argument errors don't waste a probe.
 
 (`/work` resolves its argument via `scan-queue.ps1 -Target <arg>` instead — same exact → Jira-key → substring order, plus a `jirakey-miss` outcome that triggers inline Jira import. See the `/work` skill.)
 

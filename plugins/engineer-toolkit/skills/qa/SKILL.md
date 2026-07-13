@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Run a QA verification pass for a Jira ticket or adhoc investigation against a deployed environment (dev, qa, or staging). Composes a scenario from how-tos and test data, drives automated steps via Chrome MCP, prompts the user for manual steps, captures evidence, and reports the verdict. No local code clones — for local-branch verification use /smoke instead. Argument is `<key-or-hint> <env>`.
+description: Run a QA verification pass for a Jira ticket or adhoc investigation against a deployed environment (dev, qa, or staging). Composes a scenario from how-tos and test data, drives automated steps via Chrome MCP, prompts the user for manual steps, captures evidence, and reports the verdict. No local code clones — for local-branch verification use /local-test instead. Argument is `<key-or-hint> <env>`.
 argument-hint: <key-or-hint> <env>
 disable-model-invocation: true
 user-invocable: true
@@ -13,9 +13,9 @@ In this skill, `<workspace>` refers to the Workspace path defined in the workspa
 
 # QA
 
-Run a QA verification pass over a Jira ticket or adhoc investigation. Drives the multi-app data setup and verification across dev, qa, or staging environments. For local-branch verification, use `/smoke` instead. Uses a hybrid execution model: Claude drives `[automated]` steps via Chrome MCP, prompts the user for `[manual]` steps, validates `[assertion]` steps against a source of truth.
+Run a QA verification pass over a Jira ticket or adhoc investigation. Drives the multi-app data setup and verification across dev, qa, or staging environments. For local-branch verification, use `/local-test` instead. Uses a hybrid execution model: Claude drives `[automated]` steps via Chrome MCP, prompts the user for `[manual]` steps, validates `[assertion]` steps against a source of truth.
 
-This skill runs the orchestrator pipeline (phases 1–4) directly in the main conversation. Subagents are NOT dispatched for v1 — manual-step interaction requires real-time user response, which only the main conversation can provide. The `playwright-driver` agent (at `agents/playwright-driver.md`) is a pure-function Playwright walker that any future fully-automated regression flow can dispatch — it has no /qa or /smoke specifics; the caller supplies the plan, app config, and screenshots dir, and gets back a structured verdict + step results.
+This skill runs the orchestrator pipeline (phases 1–4) directly in the main conversation. Subagents are NOT dispatched for v1 — manual-step interaction requires real-time user response, which only the main conversation can provide. The `playwright-driver` agent (at `agents/playwright-driver.md`) is a pure-function Playwright walker that any future fully-automated regression flow can dispatch — it has no /qa or /local-test specifics; the caller supplies the plan, app config, and screenshots dir, and gets back a structured verdict + step results.
 
 ## Configuration
 
@@ -34,7 +34,7 @@ Hardcoded in this skill:
 `/qa <key-or-hint> <env>` — both arguments required.
 
 - `<key-or-hint>`: Jira key (e.g., `CRD-123`), adhoc slug (kebab-case, e.g., `flaky-payment-bug`), or a substring hint.
-- `<env>`: `dev`, `qa`, or `staging`. For local-branch verification, use `/smoke` instead.
+- `<env>`: `dev`, `qa`, or `staging`. For local-branch verification, use `/local-test` instead.
 
 If either argument is missing or `<env>` is not one of the three valid values, print exactly:
 

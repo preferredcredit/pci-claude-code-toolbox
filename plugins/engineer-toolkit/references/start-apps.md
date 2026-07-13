@@ -1,6 +1,6 @@
-# Start Apps (`/smoke` Phase 2)
+# Start Apps (`/local-test` Phase 2)
 
-Concrete commands for the two start modes in `/smoke` Phase 2. The skill body owns the orchestration (which mode, what gets logged, when to abort); this file owns the literal command strings.
+Concrete commands for the two start modes in `/local-test` Phase 2. The skill body owns the orchestration (which mode, what gets logged, when to abort); this file owns the literal command strings.
 
 Substitute `<workspace>`, `<TARGET>`, `<repo>`, `<port>`, `<solution>`, `<startup_project>`, `<launch_profile>`, `<ready_signal>`, `<log path>` from values resolved in the skill's earlier phases.
 
@@ -13,7 +13,7 @@ $exists = Test-Path "<path>"
 $age = if ($exists) { (Get-Date) - (Get-Item "<path>").LastWriteTime } else { $null }
 ```
 
-If `-not $exists` or `$age.TotalMinutes -gt 5`, re-prompt the user. Store accepted paths in memory and set `apps_started_by: vs` in `smoke.md` frontmatter.
+If `-not $exists` or `$age.TotalMinutes -gt 5`, re-prompt the user. Store accepted paths in memory and set `apps_started_by: vs` in `local-test.md` frontmatter.
 
 ## Default mode (Claude starts apps)
 
@@ -54,4 +54,4 @@ while ((Get-Date) -lt $deadline) {
 if ((Get-Date) -ge $deadline) { abort "Ready-signal timeout for <repo>." }
 ```
 
-After all apps signal ready: set `apps_started_by: claude` in `smoke.md` frontmatter; record PID + shell ID per app for cleanup.
+After all apps signal ready: set `apps_started_by: claude` in `local-test.md` frontmatter; record PID + shell ID per app for cleanup.

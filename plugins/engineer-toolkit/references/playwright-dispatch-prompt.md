@@ -1,10 +1,10 @@
 # Playwright Driver Dispatch Prompt
 
-The literal prompt template `/smoke` Phase 4 Step 1 sends to the `playwright-driver` subagent via the Task tool. The driver is a pure function: prompt in, structured return out — it does not read or write `smoke.md`. The orchestrator (`/smoke`) owns file I/O.
+The literal prompt template `/local-test` Phase 4 Step 1 sends to the `playwright-driver` subagent via the Task tool. The driver is a pure function: prompt in, structured return out — it does not read or write `local-test.md`. The orchestrator (`/local-test`) owns file I/O.
 
 ## Template
 
-Substitute the Plan steps (from `## Plan` in `smoke.md`), the Apps list (name — URL — log path tuples from earlier phases), the primary URL, the Screenshots dir, and the per-host profile directory.
+Substitute the Plan steps (from `## Plan` in `local-test.md`), the Apps list (name — URL — log path tuples from earlier phases), the primary URL, the Screenshots dir, and the per-host profile directory.
 
 ```
 Plan:
@@ -23,7 +23,7 @@ Playwright launch configuration:
     - "--auth-server-allowlist=localhost,*.preferredcredit.net"
     - "--auth-negotiate-delegate-allowlist=localhost,*.preferredcredit.net"
   context.ignoreHTTPSErrors: true
-  userDataDir: <workspace>\.smoke\profile\<primary-host>\
+  userDataDir: <workspace>\.local-test\profile\<primary-host>\
   headless: true  (relaunch headed on auth-wall detection per your procedure)
 
 Primary URL: <primary_url>
@@ -37,6 +37,6 @@ Walk the plan and return: Verdict line + ## Step Results block per your return-f
 
 ## Notes
 
-- `Starting step: <N>` is omitted on the first dispatch and added on every re-dispatch after an auth-fallback round (so the driver resumes at the right step).
+- `Starting step: <N>` is omitted on the first dispatch and added on every re-dispatch — after an auth-fallback round, or when resuming an interrupted run (so the driver resumes at the right step).
 - The `--auth-server-allowlist` and `--auth-negotiate-delegate-allowlist` values are PCI-specific (Windows Integrated Auth against `*.preferredcredit.net` apps). If the workspace ever targets a different domain, update both flags.
 - `userDataDir` is keyed per primary host so the cached session cookies don't collide across different apps.

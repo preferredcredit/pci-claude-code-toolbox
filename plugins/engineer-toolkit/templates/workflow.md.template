@@ -191,7 +191,7 @@ The Jira-driven workflow has phases (Setup → Triage → Spec → Plan → Exec
 | Discovery + housekeeping pass (refresh PlanningWorkspace, sync Jira Status, sweep, dashboard, suggest next work) | `/status` |
 | Workspace bootstrap, prereq check, scaffold flow | `/workspace-init` |
 | Scaffolding unticketed work from a slug or free-form description | `/adhoc` |
-| Local Playwright smoke walk against your dev branch | `/smoke` |
+| Local Playwright test walk against your dev branch | `/local-test` |
 | End-to-end QA verification (dev/qa/staging) | `/qa` |
 | New Story-workflow ticket (CRD, CO, etc.) | `/create-issue` |
 | CAB ticket creation in the CHANGE project | `/create-change-issue` |
@@ -225,9 +225,9 @@ PCI hosts code on Azure DevOps on-prem. The GitHub CLI (`gh`) does not work agai
 
 If a future workflow needs PR-tree introspection from a script, use the Azure DevOps REST API (or an ADO MCP if/when one is wired up) rather than reaching for `gh`.
 
-## Local Smoke Testing
+## Local Testing
 
-The `/smoke` skill runs an autonomous local walk-through of a Jira ticket's acceptance criteria. Use it to verify your own feature branch before opening a PR. Local environment only — for deployed envs use `/qa`. See the skill body for the full pipeline.
+The `/local-test` skill (formerly `/smoke`) runs an autonomous local walk-through of a Jira ticket's acceptance criteria. Use it to verify your own feature branch before opening a PR. Local environment only — for deployed envs use `/qa`. See the skill body for the full pipeline.
 
 ## QA Verification
 
