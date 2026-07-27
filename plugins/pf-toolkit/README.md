@@ -1,26 +1,44 @@
 # PF Toolkit
 
-Claude Code plugin **specific to PCI's Public Facing (PF) team**. The skills here are tailored to the
-PF team's release process and Jira setup (`preferredcredit.atlassian.net`) — not general-purpose Jira
-skills. Each one gathers the needed context and writes to Jira only after an explicit confirmation step.
+The **Public Facing (PF) team's** shared Claude Code plugin — a home for the tooling the team uses day
+to day. Anything that helps the PF workflow belongs here: skills, slash commands, subagents, and
+references, across whatever the team works on (the mobile apps, the APIs, releases, Jira, ADO, and
+whatever comes next). It's meant to grow over time as the team finds things worth sharing.
 
-## Skills
+Everything here runs against PCI's own systems (Jira `preferredcredit.atlassian.net`, Azure DevOps, the
+mobile repos), and anything that writes or changes state does so only after an explicit confirmation
+step.
 
-Each skill is **model-invocable** (Claude can surface the right one from natural language) and also
-runnable directly as a slash command.
+## What's in it today
 
-| Command | Creates | Jira project | Notes |
-|---|---|---|---|
-| `/create-change-from-release` | Change | CHANGE | Builds the release **Change** record for a whole PF release/hotfix from a Jira release **version**: reads the `fixVersion`, gathers every issue, derives the distinct **System Components** for the Release Steps, sets the CHANGE custom fields (approver, validator, reason, risk, dates, request type), links every release issue via `Relates`, and flags the manual Related-Work step. |
+### Skills
+Model-invocable (Claude surfaces the right one from natural language) and also runnable as a slash command.
+
+| Skill | What it does |
+|---|---|
+| `/create-change-from-release` | Builds the release **Change** record in Jira for a whole PF release/hotfix from a release **version**: reads the `fixVersion`, gathers every issue, derives the distinct **System Components** for the Release Steps, sets the CHANGE custom fields (approver, validator, reason, risk, dates, request type), links every release issue via `Relates`, and flags the manual Related-Work step. |
 
 > Not to be confused with `engineer-toolkit`'s `create-change-issue`, which builds a single-deploy CAB
 > from one dev ticket. `create-change-from-release` is driven by a whole release **version** and links
 > every issue in it.
 
+### Commands
+The mobile build/review loop (`pci-mobile-ios` / `pci-mobile-android`).
+
+| Command | What it does | Notes |
+|---|---|---|
+| `/mobile-prep-build` | Bumps the build number, assembles release notes from merged PRs, and commits | Args: `ios` or `android`, optionally a marketing version (e.g. `android 6.27.0`). Reads/writes the mobile repos and ADO PRs. Assumes the local layout `C:\Repos\PCIMobile\pci-mobile-ios` / `pci-mobile-android` — adjust the paths in `commands/mobile-prep-build.md` if your clone differs. |
+| `/mobile-review-pr` | Reviews an Azure DevOps PR (iOS/Android) against the code and its linked Jira story | Arg: a PR number or ADO PR URL. |
+
 ## Requirements
 
-- The **Atlassian MCP server** must be connected. If it isn't, the skill stops and asks you to connect
-  it rather than attempting workarounds.
+Depends on the piece you're using — connect what it needs:
+
+- **Atlassian MCP** — for `create-change-from-release` and the Jira lookup in `mobile-review-pr`.
+- **Azure DevOps (ADO) MCP** — for the PR/build data in `mobile-prep-build` and `mobile-review-pr`.
+
+If a required server isn't connected, the skill/command stops and asks you to connect it rather than
+guessing.
 
 ## Installation
 
@@ -29,16 +47,18 @@ runnable directly as a slash command.
 /plugin install pf-toolkit@pci-toolbox
 ```
 
-## Usage
+## Adding to the toolkit
 
-Point it at a PF release version — a pasted release-report URL, or a fix-version name/id:
+This is the PF team's shared space — add to it. Drop new work into the matching folder and it's picked
+up automatically (no manifest wiring needed):
 
-```
-/create-change-from-release https://preferredcredit.atlassian.net/projects/PF/versions/12076/tab/release-report-all-issues
-```
+- **Skills** → `skills/<name>/SKILL.md` (+ optional `references/`) — for model-invocable workflows.
+- **Commands** → `commands/<name>.md` — for slash commands.
+- **Subagents** → `agents/<name>.md`.
+- **Shared references** → `references/`.
 
-It gathers the release's issues and system components, shows you the assembled CHANGE payload and the
-link list, and writes to Jira only after you confirm.
+Keep names descriptive and scoped (e.g. the `mobile-` prefix for mobile-only commands), list the new
+item in this README, and bump the `version` in `.claude-plugin/plugin.json`.
 
 ## Development
 
