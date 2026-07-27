@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "PCI's plugin marketplace for Claude Code extensions",
-    "version": "1.4.0"
+    "version": "1.5.0"
   },
   "plugins": [
     {
@@ -16,6 +16,10 @@
     {
       "name": "crd-toolkit",
       "source": "./plugins/crd-toolkit"
+    },
+    {
+      "name": "pf-toolkit",
+      "source": "./plugins/pf-toolkit"
     }
   ]
 }

@@ -1,0 +1,12 @@
+{
+  "name": "pf-toolkit",
+  "description": "Public Facing (PF) team toolkit — Jira skills for the PF release process, starting with building the release Change record for PF mobile/API releases and hotfixes from a Jira release version.",
+  "version": "0.1.0",
+  "author": {
+    "name": "PCI"
+  },
+  "homepage": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "repository": "https://github.com/preferredcredit/pci-claude-code-toolbox",
+  "license": "MIT",
+  "keywords": ["jira", "atlassian", "public-facing", "pf", "mobile", "api", "release", "change-management", "pci"]
+}

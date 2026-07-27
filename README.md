@@ -6,6 +6,7 @@ PCI's plugin marketplace to distribute Claude Code extensions across teams.
 
 - **[Engineer Toolkit](plugins/engineer-toolkit/README.md)** — Jira-driven dev workflow plus code review and architecture analysis
 - **[CRD Toolkit](plugins/crd-toolkit/README.md)** — Jira ticket-authoring skills specific to the Credit Risk & Decisioning (CRD) team (epics, stories, tasks, bugs, and release Changes)
+- **[PF Toolkit](plugins/pf-toolkit/README.md)** — Public Facing (PF) team skills
 
 ## Installation
 
