@@ -26,9 +26,11 @@ error-prone. All of that lives in **`references/change-fields.md`** — read it 
 ## Prerequisites
 
 - The **Atlassian MCP must be connected** (the tools named `getJiraIssue`, `searchJiraIssuesUsingJql`,
-  `createJiraIssue`, `createIssueLink`, `lookupJiraAccountId`, `atlassianUserInfo`). If they aren't
-  available, tell the user to connect/authorize Atlassian first — you can't proceed without it.
-- Site cloudId: `preferredcredit.atlassian.net`.
+  `createJiraIssue`, `editJiraIssue`, `createIssueLink`, `lookupJiraAccountId`,
+  `getJiraIssueTypeMetaWithFields`, `atlassianUserInfo`). If they aren't available, tell the user to
+  connect/authorize Atlassian first — you can't proceed without it.
+- Site cloudId: `preferredcredit.atlassian.net`. If a tool rejects the site URL, resolve the real cloud
+  id with `getAccessibleAtlassianResources` and use that instead.
 
 ## Inputs to collect
 
@@ -55,16 +57,20 @@ Read `references/change-fields.md` first — it has every field id, option id, t
 gotchas. Then:
 
 1. **Find the release issues.** Run `searchJiraIssuesUsingJql` with `fixVersion = <id>` (by id, exactly
-   like the URL) requesting fields `summary, issuetype, status, parent, customfield_11455`. Ask for up
-   to 100 results. These responses are big and usually spill to a `tool-results` file — parse it with
-   PowerShell (`Get-Content -Raw | ConvertFrom-Json`), don't try to eyeball raw JSON.
+   like the URL) requesting fields `summary, issuetype, status, parent, customfield_11455` with
+   `maxResults: 100`. **If the response includes a `nextPageToken`, keep calling with that token and
+   accumulate every page — a release can exceed 100 issues, and building the CHANGE from a partial set
+   is a correctness bug.** These responses are big and usually spill to a `tool-results` file — parse it
+   with PowerShell (`Get-Content -Raw | ConvertFrom-Json`), don't try to eyeball raw JSON.
 
 2. **Derive the system components.** `customfield_11455` (System Component) on each issue gives the
    authoritative component list (e.g. `pci-mobile-ios`, `pci-mobile-android`, `Mobile.Api`). The
-   distinct set becomes the **Release Steps** bullets. Sub-tasks (CR/Bug/QA) usually have no component —
-   that's fine; they inherit their parent's. **Call out explicitly** if a component beyond mobile/API
-   appears (e.g. an Origination endpoint), since that means an extra release step the user may need to
-   fill in.
+   distinct set becomes the **Release Steps** bullets. Sub-tasks (CR/Bug/QA) usually have no component of
+   their own — treat them as their parent's. Usually the parent is also in the release, so its component
+   is already counted; but if a sub-task's `parent` is **not** in the result set, fetch that parent with
+   `getJiraIssue` and read its `customfield_11455` so you don't undercount components. **Call out
+   explicitly** if a component beyond mobile/API appears (e.g. an Origination endpoint), since that means
+   an extra release step the user may need to fill in.
 
 3. **Confirm the inputs** in the table above with the user (summary, date/time, reason, approver,
    validator, link scope). Keep it to the few that actually vary.

@@ -18,7 +18,7 @@ Extract the PR number from the input. It may be:
 
 ## Step 2: Fetch PR Metadata
 
-Use `mcp__ado__repo_get_pull_request_by_id` with the PR number and project `mobile` to get:
+Use `mcp__ado__repo_get_pull_request_by_id` with the PR number and project `Mobile` to get:
 - Title, description
 - Source and target branches
 - Repository name (to determine if this is iOS or Android)

@@ -6,8 +6,10 @@ references, across whatever the team works on (the mobile apps, the APIs, releas
 whatever comes next). It's meant to grow over time as the team finds things worth sharing.
 
 Everything here runs against PCI's own systems (Jira `preferredcredit.atlassian.net`, Azure DevOps, the
-mobile repos), and anything that writes or changes state does so only after an explicit confirmation
-step.
+mobile repos). Most actions that write or change state pause for an explicit confirmation first; a few
+are intentionally fire-and-forget where the result is easy to undo — e.g. `mobile-prep-build` bumps the
+build and commits **locally** without prompting, since that commit can simply be amended. Each
+skill/command notes its own behavior.
 
 ## What's in it today
 
@@ -27,7 +29,7 @@ The mobile build/review loop (`pci-mobile-ios` / `pci-mobile-android`).
 
 | Command | What it does | Notes |
 |---|---|---|
-| `/mobile-prep-build` | Bumps the build number, assembles release notes from merged PRs, and commits | Args: `ios` or `android`, optionally a marketing version (e.g. `android 6.27.0`). Reads/writes the mobile repos and ADO PRs. Assumes the local layout `C:\Repos\PCIMobile\pci-mobile-ios` / `pci-mobile-android` — adjust the paths in `commands/mobile-prep-build.md` if your clone differs. |
+| `/mobile-prep-build` | Bumps the build number, assembles release notes from merged PRs, and commits | Args: `ios` or `android`, optionally a marketing version (e.g. `android 6.27.0`), and optionally a repo-root path. Reads/writes the mobile repos and ADO PRs. Finds the repos under `C:\Repos\PCIMobile` by default; if your clone lives elsewhere, pass the root as an argument or set the `PCIMOBILE_ROOT` env var (it also auto-detects when run from inside the repo). |
 | `/mobile-review-pr` | Reviews an Azure DevOps PR (iOS/Android) against the code and its linked Jira story | Arg: a PR number or ADO PR URL. |
 
 ## Requirements

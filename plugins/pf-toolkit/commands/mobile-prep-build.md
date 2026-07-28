@@ -2,7 +2,7 @@
 description: Bump build number, assemble release notes from merged PRs, and commit — supports iOS and Android
 arguments:
   - name: platform_and_version
-    description: "Platform (ios or android), optionally followed by a marketing version. Examples: 'ios', 'android 6.27.0', 'ios 6.26.0'"
+    description: "Platform (ios or android), optionally a marketing version, and optionally a repo-root path. Examples: 'ios', 'android 6.27.0', 'ios 6.26.0 D:/work/PCIMobile'"
     required: true
 ---
 
@@ -12,21 +12,32 @@ Prepare a mobile project for a new build by bumping the build number and assembl
 
 User input: `$ARGUMENTS`
 
+> The shell snippets below are written for **bash / git-bash** (run them via the Bash tool). On a
+> PowerShell-only setup, adapt Unix-style filters — e.g. `head -1` → `Select-Object -First 1`.
+
 ## Step 0: Parse Arguments
 
 Parse the user input to extract:
 - **Platform**: must be `ios` or `android` (case-insensitive). If not provided, ask.
 - **Marketing version** (optional): a version string like `6.27.0`. If omitted, keep the current version.
+- **Repo root** (optional): a filesystem path to the `PCIMobile` parent folder, if the user included one.
 
-Set these variables based on platform:
+Set `ADO_REPO_ID` from the platform — this is an ADO repo identifier, not a path, so it's always fixed:
+- iOS → `pci-mobile-ios`
+- Android → `pci-mobile-android`
 
-### iOS
-- `REPO_DIR` = `C:/Repos/PCIMobile/pci-mobile-ios`
-- `ADO_REPO_ID` = `pci-mobile-ios`
+**Resolve `REPO_DIR`** = `<root>/<ADO_REPO_ID>`, choosing `<root>` from the first source below that
+yields a directory which actually exists. Validate the resolved repo before using it — iOS must contain
+`PCIMobile.xcodeproj`, Android must contain `app/build.gradle.kts`:
 
-### Android
-- `REPO_DIR` = `C:/Repos/PCIMobile/pci-mobile-android`
-- `ADO_REPO_ID` = `pci-mobile-android`
+1. **Argument** — a repo-root path passed in the command input.
+2. **`PCIMOBILE_ROOT` env var** — if it is set.
+3. **Context** — the current working directory when it is (or contains) the `<ADO_REPO_ID>` repo
+   (e.g. `git rev-parse --show-toplevel` basename matches `<ADO_REPO_ID>`, or `./<ADO_REPO_ID>` exists).
+4. **Default** — `C:/Repos/PCIMobile`.
+
+If none of these resolve to a valid repo, **ask the user for the path** rather than guessing. Most people
+on the standard layout hit the default at step 4 and are never prompted.
 
 ---
 
@@ -90,7 +101,7 @@ Get all merge commits on development since that prep-build commit:
 git log <prep_build_commit>..origin/development --merges --oneline
 ```
 
-If no prep-build commit is found (first time), fall back to the most recent version tag (`git tag --sort=-creatordate | head -1`).
+If no prep-build commit is found (first time), fall back to the newest version tag: `git tag --sort=-creatordate` and take the first line (bash: `| head -1`; PowerShell: `| Select-Object -First 1`).
 
 For each merge commit that looks like a PR merge (message usually contains "Merged PR #XXX"), extract the PR number. Then use `mcp__ado__repo_get_pull_request_by_id` with `project: "Mobile"` and `repositoryId: "{ADO_REPO_ID}"` to fetch each PR's title and description.
 

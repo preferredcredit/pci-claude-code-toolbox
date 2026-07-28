@@ -1,7 +1,8 @@
 # CHANGE project — field & option reference
 
 Everything here is for the **Change Management** project on `preferredcredit.atlassian.net`
-(cloudId = `preferredcredit.atlassian.net`). These IDs were verified from the project's create-metadata
+(cloudId = `preferredcredit.atlassian.net`; if a tool rejects the site URL, resolve the real cloud id
+with `getAccessibleAtlassianResources` and use that). These IDs were verified from the project's create-metadata
 and from existing changes CHANGE-10473 (Mobile 6.26.0) and CHANGE-10807 (upload-docs hotfix). If a
 `createJiraIssue` call ever rejects an option id, re-pull the metadata with
 `getJiraIssueTypeMetaWithFields` (project `CHANGE`, issueTypeId `10026`, `requiredFieldsOnly: false`).
@@ -65,12 +66,10 @@ Application         = <leave blank>
 
 ## People (accountId hints — re-verify with lookupJiraAccountId, IDs can be wrong/stale)
 
-| Name | accountId | email |
-|---|---|---|
-| Carissa Schwinghammer (default Approver) | `5a25575d8c316e43f3b13876` | cmsc@preferredcredit.com |
-| Kelly Knier (default Validator) | `5a27ce52ea677a37e8eb263b` | kjkn@preferredcredit.com |
-| Nicole Virnig | `6273f24bca1fee006ae3a5e4` | nivi@preferredcredit.com |
-| Kasey Bueckers | `62544326d2839e006baf9166` | kcbu@preferredcredit.com |
+| Name | accountId |
+|---|---|
+| Carissa Schwinghammer (default Approver) | `5a25575d8c316e43f3b13876` |
+| Kelly Knier (default Validator) | `5a27ce52ea677a37e8eb263b` |
 
 Assignee = the dev running the skill; get their accountId from `atlassianUserInfo`.
 
