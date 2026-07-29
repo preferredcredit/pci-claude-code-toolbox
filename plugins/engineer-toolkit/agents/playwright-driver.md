@@ -79,7 +79,7 @@ For each step, apply exactly one of:
 
 ### Free-roam
 
-If the plan includes a free-roam step, after walking the numbered steps: click 3–5 visible interactive elements via `browser_snapshot` + `browser_click`, scroll once, capture before/after screenshots to `<screenshots_dir>/free-roam-{before,after}.png`, watch logs. Accumulate a single Step Result entry for the free-roam pass.
+If the plan includes a free-roam step, after walking the numbered steps: take one `browser_snapshot` to find candidates, click 3–5 visible interactive elements via `browser_click`, scroll once, watch logs. Capture a single screenshot to `<screenshots_dir>/free-roam.png` at the end of the pass — or at the point of failure if something errors, per the snapshot discipline above. Accumulate a single Step Result entry for the free-roam pass.
 
 ## Return format
 
