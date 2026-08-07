@@ -43,7 +43,7 @@ Each step has a **Skip-if pipeline mode** note where the behavior differs.
 
 ## Step 1: Gather Context
 
-> **Skip-if pipeline mode**: All five inputs below are pre-supplied in the invocation. Use them directly; do not ask follow-up questions. If any are missing, note them as caveats in the final output and proceed.
+> **Skip-if pipeline mode**: All inputs below are pre-supplied in the invocation. Use them directly; do not ask follow-up questions. If any are missing, note them as caveats in the final output and proceed.
 
 Required inputs:
 
@@ -54,7 +54,7 @@ Required inputs:
    - **From a prior AI review**: parse the `findings-v1` JSON out of the `<!-- ai-pr-review:findings-v1 ... -->` marker in the prior summary comment. Each entry already has `file`, `line`, `severity`, `title`, `message`.
    - **From a prior human review**: read each human inline thread on the PR and treat its first comment as a finding. Extract `file` and `line` from the thread's `threadContext`. Infer `severity` from language ("must fix" / "blocking" → critical; "should" / "consider" → warning; "nit" / "optional" → suggestion). Use the comment text as `message` and the first sentence as `title`. If a comment is purely a question (no implied finding), skip it — questions aren't findings.
    - **Mixed**: do both. Each finding is treated identically downstream regardless of source. Note the source in the `rationale` field of the output JSON so reviewers can tell at a glance.
-5. **Thread replies and statuses** — For each prior finding, any human replies on its inline thread and the thread's current status. ADOS uses these statuses (UI label / API name):
+5. **Per-thread replies and statuses** — For each prior finding, any human replies on its inline thread and the thread's current status. ADOS uses these statuses (UI label / API name):
 
    | UI label | API name | What it usually means |
    |---|---|---|
@@ -67,7 +67,21 @@ Required inputs:
 
    At PCI the team workflow uses the PR-level "Waiting for Author" state when reviewers have left unresolved comments — this is separate from individual thread status, but a PR in that state strongly implies the threads are not yet conclusively resolved.
 
-Ask the user for whatever isn't already provided. If only a PR link is given, ask the user to paste the prior review comment, the inline threads, and their reply chains directly — `gh` is not available at PCI (Azure DevOps on-prem). See workflow doctrine "No GitHub CLI".
+6. **PR-level author replies** — replies posted to the MAIN AI summary comment (as opposed to per-finding inline threads). Authors frequently post consolidated explanations here that address multiple findings at once. For example: *"The staging Genesys URL is intentional and matches Central.Web's setup. The NLS conn string is consumed by AccountDetails.Server's DI registration."* — one comment, addresses two separate findings.
+
+   - **In interactive mode**: read the main AI summary comment's reply chain.
+   - **In pipeline mode**: the pipeline provides these under a `PR_LEVEL_AUTHOR_REPLIES` section in the user message (a JSON array of `{author, content, publishedDate}` objects).
+
+   **How to apply them**: treat every PR-level reply as commentary on the entire review, not just one finding. When evaluating a specific prior finding's status, check BOTH the per-thread replies AND the PR-level replies for anything that addresses this finding — the author may have written a single top-level comment covering three or four issues, and you should credit each one appropriately. If a PR-level reply gives a convincing rationale for a finding, apply the same status you would if the reply had been on the inline thread (`acknowledged-wontfix`, `false-positive`, etc.).
+
+7. **Project rules (CLAUDE.md)** — if the project has a `CLAUDE.md` at the repo root, its rules should be enforced in the recheck too. Applies to both new findings and to the classification of prior findings.
+
+   - **In interactive mode**: read `CLAUDE.md` at the project root if present.
+   - **In pipeline mode**: the pipeline provides its contents under a `PROJECT_RULES` section in the user message (only when the consumer repo has a `CLAUDE.md`).
+
+   Use these rules the same way author-review does: prefer to cite the specific rule when flagging a violation, and don't fabricate rules the project didn't state.
+
+Ask the user for whatever isn't already provided. If only a PR link is given, ask the user to paste the prior review comment, the inline threads, the summary-thread replies, and any project CLAUDE.md content directly — `gh` is not available at PCI (Azure DevOps on-prem). See workflow doctrine "No GitHub CLI".
 
 ## Step 2: Gather Both Diffs (Delta + Full PR)
 
@@ -100,6 +114,7 @@ Judgment rules — read these before assigning statuses:
 
 - **Don't trust thread status alone.** A thread marked `fixed` (Resolved) without a code change AND without an explanatory reply should still be `still-present`. Resolution is metadata; the conversation and the code are the evidence.
 - **Be charitable to human explanations but not credulous.** If a reply says "this is fine because X" and X is verifiable in the code, accept it. If X is hand-wavy or contradicted by the code, downgrade to `still-present` with a note "author response acknowledged but issue remains because…".
+- **Look at BOTH per-thread and PR-level replies for every finding.** Authors don't always reply on the exact inline thread — they often post consolidated explanations on the main summary comment. When you evaluate a specific prior finding, scan the `PR_LEVEL_AUTHOR_REPLIES` for any text that addresses this finding by name, file, topic, or reasoning. If found, apply the same judgment you would if it had been posted on the inline thread. A finding with no inline reply but with a clear PR-level reply is `acknowledged-wontfix` or `false-positive`, not `still-present`. Do NOT flag a finding as still-present just because its own inline thread is empty — check the PR-level replies first.
 - **If the file:line was deleted/moved**, the original finding may be stale. Look for the same issue at the new location before declaring it `addressed`.
 - **If a prior finding's file is NOT in the FULL PR DIFF at all**, the code that triggered the finding is no longer part of what this PR is changing. Mark the finding as `superseded` (or `addressed` if you can see in the delta diff that it was removed) with a rationale noting "file no longer in PR diff — code path removed from PR scope or never actually changed by this PR." Do NOT keep it as `still-present` (there's nothing to be still present in), and do NOT regenerate it as a `kind: "missed"` finding (see Step 4 hard constraint).
 - **Severity downgrade rules**: an `acknowledged-wontfix` finding stays in the report but its severity drops (Critical → Warning, Warning → Suggestion). Don't keep a Critical alive against a convincing intentional-design reply.

@@ -95,7 +95,7 @@ State your assessment and reasoning.
 
 ## Step 6: Code Quality Review
 
-> **Skip-if pipeline mode**: The Task tool is unavailable. Perform the equivalent code review yourself, inline. Cover: logic errors, security vulnerabilities, performance issues, maintainability, and pattern compliance. Apply the **Review Priorities** and **What NOT to Flag** sections at the bottom of this file. Reference specific file:line for every finding.
+> **Skip-if pipeline mode**: The Task tool is unavailable. Perform the equivalent code review yourself, inline. Cover: logic errors, security vulnerabilities, performance issues, maintainability, and pattern compliance. Apply the **Project Rules** check below, the **Review Priorities**, and the **What NOT to Flag** section at the bottom of this file. Reference specific file:line for every finding.
 
 Use the Task tool to delegate to the `code-reviewer` agent with the following prompt:
 
@@ -103,6 +103,20 @@ Use the Task tool to delegate to the `code-reviewer` agent with the following pr
 > Focus on: logic errors, security vulnerabilities, performance issues, maintainability, and pattern compliance.
 > Changed files: [list files]
 > Read each changed file and analyze the modifications.
+
+### Project Rules (CLAUDE.md)
+
+Many PCI repos maintain a `CLAUDE.md` at the project root (and sometimes in subdirectories) that describes project-specific conventions: naming rules, testing conventions, banned patterns, forbidden shortcuts, "always use X for Y" rules, etc. **These rules take precedence over generic best practices** — the team has already decided, and your job is to enforce.
+
+- **In interactive mode**: read `CLAUDE.md` at the project root before writing findings. If the diff touches files in a subdirectory that ALSO has its own `CLAUDE.md`, read that too (nested rules override root rules for their scope).
+- **In pipeline mode**: the pipeline injects the root `CLAUDE.md` content into the user message under a `PROJECT_RULES:` section (only when the consumer repo has a `CLAUDE.md`). If that section is present, treat every rule stated there as a review criterion.
+
+When the diff violates a stated rule:
+- Include a finding with `severity: warning` (or higher if the rule's phrasing implies criticality — e.g., "NEVER" / "MUST" / "blocking")
+- In the finding's `message`, **cite the rule verbatim** (or a close paraphrase) so the author knows which rule they missed
+- Prefer flagging a rule violation over an equivalent generic best-practice violation — the citation makes the finding actionable
+
+If the `PROJECT_RULES` section is absent (no CLAUDE.md in the repo), review against generic best practices only. Do not fabricate rules the project didn't state.
 
 ## Step 7: Architecture Review (Complex Changes Only)
 
