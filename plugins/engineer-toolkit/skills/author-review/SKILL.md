@@ -205,6 +205,12 @@ Recommend a walkthrough if:
 
 > **Pipeline mode only**: emit this section *only* in pipeline mode (when `MODE: pipeline` is present in the invocation). In interactive mode, omit it entirely — humans reading the prose report don't need it, and engineers paste the report into PR descriptions where the JSON would be noise.
 
+> **MANDATORY OUTPUT — DO NOT SKIP THIS SECTION IN PIPELINE MODE.**
+>
+> The JSON block below is **required output** even when there are zero findings — emit `{"findings": []}` in that case. It is what the pipeline uses to post per-finding inline comments to the PR and to embed findings context for future rechecks. Without it, no inline comments are posted and the recheck pipeline can't cross-reference prior findings.
+>
+> **The Output Discipline rule ("final conclusions only, no chain-of-thought") governs WHAT goes INSIDE the JSON, not WHETHER to emit it.** Retracted findings should be omitted from the JSON (and from the prose). The block itself is never omitted.
+
 > **REQUIRED FORMAT — THE FENCE IS NOT OPTIONAL.**
 >
 > You **MUST** wrap the JSON in a triple-backtick fenced code block whose opening line is exactly `` ```json findings-v1 ``` `` (with both `json` and `findings-v1` separated by a single space). The closing fence is `` ``` `` on its own line.

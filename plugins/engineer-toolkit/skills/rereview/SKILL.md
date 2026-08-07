@@ -280,6 +280,18 @@ Findings that were present in the code at the time of the prior review but the o
 
 > **Pipeline mode only**: emit this section *only* in pipeline mode (when `MODE: pipeline-recheck` is present). In interactive mode, omit it entirely — humans don't need it, and engineers paste the prose into PR comments where the JSON would be noise.
 
+> **MANDATORY OUTPUT — DO NOT SKIP THIS SECTION IN PIPELINE MODE.**
+>
+> The JSON block below is **required output**, not optional structured deliberation. Even when:
+> - All prior findings are `addressed`
+> - All prior findings are `acknowledged-wontfix` (via PR-level or inline replies)
+> - Zero new findings, zero missed findings
+> - `all_clear: true`
+>
+> …you **still emit** the JSON block. It is what the pipeline uses to render the comment header (`✅ all clear | merge: ready` vs `⚠️ not all clear | merge: unknown`) and to gate downstream automation. Without it, the pipeline falls back to fallback header values that contradict your own prose conclusion — making the review look self-contradictory to the reviewer.
+>
+> **The Output Discipline rule ("final conclusions only, no chain-of-thought") governs WHAT goes INSIDE the JSON, not WHETHER to emit it.** Retracted findings should be omitted from the JSON (and from the prose). The block itself is never omitted.
+
 > **REQUIRED FORMAT — THE FENCE IS NOT OPTIONAL.**
 >
 > You **MUST** wrap the JSON in a triple-backtick fenced code block whose opening line is exactly `` ```json recheck-status-v1 ``` `` (with both `json` and `recheck-status-v1` separated by a single space). The closing fence is `` ``` `` on its own line.
