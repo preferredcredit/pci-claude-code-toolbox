@@ -133,13 +133,14 @@ an empty Description. `PF-431` is the quality bar; its characteristics are in
 
 ## Step 4: Preview, refine, confirm
 
-Show **one** preview — metadata plus every drafted field in full:
+Show **one** preview — metadata plus every drafted field in full. `<TYPE>` below is the resolved issue
+type from Step 1 — `Story` or `Task`. Carry it through every line; never print `Story` for a Task:
 
 ```
-About to create PF Story:
+About to create PF <TYPE>:
 
   Project:    PF
-  Type:       Story
+  Type:       <TYPE>
   Summary:    <title>
   Parent:     <PF-### — epic summary | (none)>
   Component:  <System Component(s)>
@@ -156,7 +157,7 @@ About to create PF Story:
 <rendered text>
 ```
 
-Then ask: **"Create this Story, or what would you refine?"**
+Then ask: **"Create this `<TYPE>`, or what would you refine?"**
 
 - `yes`/`y` → create.
 - `no`/`cancel` → abort with no Jira writes.
@@ -173,7 +174,7 @@ Call `createJiraIssue`. ADF fields go in `additional_fields` as ADF JSON — `co
 {
   "cloudId": "preferredcredit.atlassian.net",
   "projectKey": "PF",
-  "issueTypeName": "Story",
+  "issueTypeName": "<TYPE — Story or Task, as resolved in Step 1>",
   "summary": "<title>",
   "description": "<markdown>",
   "contentFormat": "markdown",
@@ -190,20 +191,22 @@ Call `createJiraIssue`. ADF fields go in `additional_fields` as ADF JSON — `co
 
 If the API rejects the top-level `parent`, retry once with
 `additional_fields: { "parent": { "key": "PF-###" } }`. If it rejects a System Component value, pull the
-option ids from `getJiraIssueTypeMetaWithFields` (project `PF`, issueTypeId `10009`,
-`requiredFieldsOnly: false`) and retry with `{ "id": "<option id>" }`. On any other failure, surface the
-API error verbatim and stop.
+option ids from `getJiraIssueTypeMetaWithFields` (project `PF`, issueTypeId `10009` for a Story or
+`10007` for a Task, `requiredFieldsOnly: false`) and retry with the ids **still wrapped in the array** —
+`[ { "id": "<option id>" } ]`, never a bare object. On any other failure, surface the API error verbatim
+and stop.
 
-Report:
+Report, using the same `<TYPE>`:
 
 ```
-PF Story created: https://preferredcredit.atlassian.net/browse/<KEY>
+PF <TYPE> created: https://preferredcredit.atlassian.net/browse/<KEY>
 ```
 
 ## Common mistakes
 
 | Mistake | Fix |
 |---|---|
+| Printing or sending `Story` when the user asked for a Task | The resolved type flows through the preview header, the confirm question, `issueTypeName`, the create-meta fallback id (`10009` / `10007`), and the report line. Substitute it in all five. |
 | Product Manager passed as a bare object | It's a user **array** — `[{ "accountId": "..." }]`. QA Person is a single object. |
 | Markdown string in Technical Details / QA Details | Those are ADF fields; `contentFormat` doesn't reach `additional_fields`. Build ADF JSON. |
 | `Technical notes` written as bold text | It's an ADF `heading` at level 2. |

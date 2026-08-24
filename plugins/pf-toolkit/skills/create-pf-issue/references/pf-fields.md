@@ -63,9 +63,11 @@ Origination.Paperless.Endpoint  Origination.Default.Endpoint
 Raps.Database                   Raps.Model
 ```
 
-Only one option id is confirmed: `ClientPortal.Web` = `19836`. Pass values by `value`, not `id`. If
-Jira rejects the value form, pull the option ids from
-`getJiraIssueTypeMetaWithFields` (project `PF`, issueTypeId `10009`, `requiredFieldsOnly: false`).
+Only one option id is confirmed: `ClientPortal.Web` = `19836`. Pass values by `value`, not `id`, and
+always as an array — `[{ "value": "..." }]` — even for a single component. If Jira rejects the value
+form, pull the option ids from `getJiraIssueTypeMetaWithFields` (project `PF`, issueTypeId `10009` for
+a Story or `10007` for a Task, `requiredFieldsOnly: false`) and retry with `[{ "id": "..." }]` — still
+an array.
 
 **Repo → component mapping** for inferring the default from the working directory:
 
