@@ -18,6 +18,7 @@ Model-invocable (Claude surfaces the right one from natural language) and also r
 
 | Skill | What it does |
 |---|---|
+| `/create-pf-issue` | Creates a **Story** (or Task) in the `PF` project in the team's format: drafts the three body fields (**Description**, **Technical Details**, **QA Details**), sets **System Component** — inferred from the repo you're in — and defaults **Product Manager** / **QA Person** to Carissa and Kelly. Parent epic is opt-in. Previews every field and requires an explicit `yes` before writing. |
 | `/create-change-from-release` | Builds the release **Change** record in Jira for a whole PF release/hotfix from a release **version**: reads the `fixVersion`, gathers every issue, derives the distinct **System Components** for the Release Steps, sets the CHANGE custom fields (approver, validator, reason, risk, dates, request type), links every release issue via `Relates`, and flags the manual Related-Work step. |
 
 > Not to be confused with `engineer-toolkit`'s `create-change-issue`, which builds a single-deploy CAB

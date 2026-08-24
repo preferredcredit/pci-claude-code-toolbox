@@ -1,2 +1,5 @@
 # Claude Code local settings
 .claude/
+
+# Superpowers workflow artifacts (design specs)
+docs/superpowers/
